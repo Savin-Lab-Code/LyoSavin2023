@@ -1,0 +1,1 @@
+{"model_number": 5, "model_name": "unbiased-unconditional", "num_steps": 100, "num_hidden": 256, "num_samples": "5e+02", "num_epochs": "1e+05", "manifold_offsets": [[0, 0], [4, 0], [2, 4]], "manifold_separated": true, "batch_size": 128, "learning_rate": "3e-03"}
