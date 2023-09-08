@@ -1,1 +1,0 @@
-{"model_number": 15, "model_name": "unconditional-dendritic", "num_steps": 100, "num_hidden": [5, 5, 5, 5, 5, 5], "num_samples": "1e+03", "num_epochs": "3e+04", "manifold_offsets": [[0, 0], [4, 0], [2, 4]], "manifold_separated": true}
