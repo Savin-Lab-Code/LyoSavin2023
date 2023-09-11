@@ -419,7 +419,7 @@ def make_nd_dataset(n_points, manifold_type, radius=1.5, noise=0.1, n_dims=10, t
         return z
 
 
-def load_unimodal_data_nd(sample_size_per_manifold, manifold_type, dim_amb, rotation_angle=np.pi/4, train_test_split=False, plot=True, noise=0.1):
+def load_unimodal_data_nd(sample_size_per_manifold, manifold_type, dim_amb, rotation_angle=np.pi/4, train_test_split=False, plot=True, noise=0.1, shrink_y_axis=False):
     '''
     Generate a dataset comprising one 2D latent manifold in an arbitrary dimensional ambient space
     Whether the dataset returns a held out test set can be specified.
@@ -429,7 +429,7 @@ def load_unimodal_data_nd(sample_size_per_manifold, manifold_type, dim_amb, rota
     '''
     sample_size_per_manifold = int(sample_size_per_manifold)
     
-    dataset = make_nd_dataset(sample_size_per_manifold, manifold_type, radius=1.5, noise=noise, n_dims=dim_amb, theta=rotation_angle)
+    dataset = make_nd_dataset(sample_size_per_manifold, manifold_type, radius=1.5, noise=noise, n_dims=dim_amb, theta=rotation_angle, shrink_y_axis=shrink_y_axis)
 
     # colors are included for swiss_roll_3d dataset
     if manifold_type=='swiss_roll_3d':

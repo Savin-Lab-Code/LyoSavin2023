@@ -168,15 +168,16 @@ def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas
 def save_model_weights(model, model_name:str, model_number: int, savepath='saved_weights/'):
     '''save the state dict of a model to a given directory'''
     model_name = f'{model_name}_{model_number}.pt'
-    savepath = os.path.join('.', savepath)
-    torch.save(model.state_dict(), os.path.join(savepath, model_name))
+    savepath = os.path.join(base_dir, 'core', savepath, model_name)
+    torch.save(model.state_dict(), savepath)
     print(f'model state dict saved in directory: {savepath}')
     
 def save_model_description(model_name, model_number, description, json_savedir='model_description/'):
     '''save model description in a separate json file'''
     combined_model_name = f'{model_name}_{model_number}'
     json_name = f'{combined_model_name}.json'
-    with open(os.path.join(json_savedir, json_name), 'w') as file:
+    save_dir = os.path.join(base_dir, 'core', json_savedir, json_name)
+    with open(save_dir, 'w') as file:
         json.dump(description, file)
     
     print(f'model description saved in a json file in directory: {json_savedir}')
@@ -194,8 +195,9 @@ def load_model_weights(model, model_name, model_num, device, loadpath='saved_wei
     
 def load_model_description(model_name, model_num, json_load_dir='model_description/'):
     '''load the model description file'''
-    model_name = f'{model_name}_{model_num}'
-    params = json.load(open(os.path.join(base_dir, f'core/{json_load_dir}', f'{model_name}.json')))
+    model_name = f'{model_name}_{model_num}.json'
+    load_dir = os.path.join(base_dir, 'core', json_load_dir, model_name)
+    params = json.load(open(load_dir))
     return params
 
 def count_parameters(model): 
@@ -292,22 +294,24 @@ def save_or_load_to_zarr(mode, name, data=False):
     save or load numpy arrays to/from zarr format
     '''
     import zarr
+    data_dir = os.path.join(base_dir, 'core/saved_arrays/')
     if mode=='save':
-        zarr.save(f'saved_arrays/{name}.zarr', data)
+        zarr.save(os.path.join(data_dir, f'{name}.zarr'), data)
         print('saved!')
         return
     if mode=='load':
         print('loading!')
-        return zarr.load(f'saved_arrays/{name}.zarr')
+        return zarr.load(os.path.join(data_dir, f'{name}.zarr'))
     
     
 def save_or_load_to_pt(mode, name, data=False):
     '''save or load torch tensors to/from pt format
     '''
+    data_dir = os.path.join(base_dir, 'core/saved_arrays/')
     if mode=='save':
-        torch.save(data, f'saved_arrays/{name}.pt')
+        torch.save(data, os.path.join(data_dir, f'{name}.pt'))
         print('saved!')
         return
     if mode=='load':
         print('loading the tensor onto the CPU!')
-        return torch.load(f'saved_arrays/{name}.pt')
+        return torch.load(os.path.join(data_dir, f'{name}.pt'))
