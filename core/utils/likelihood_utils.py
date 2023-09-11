@@ -1,6 +1,9 @@
 import os, sys
 project_root = os.path.abspath("")
-base_dir = os.path.dirname(project_root)
+if project_root[-12:] == 'LyoSavin2023':
+    base_dir = project_root
+else:
+    base_dir = os.path.dirname(project_root)
 
 import numpy as np
 import torch
