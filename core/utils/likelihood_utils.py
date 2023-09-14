@@ -74,7 +74,7 @@ def compute_occlusion_score(zs, Mm, sigma=1):
 
     return torch.stack(scores).reshape(-1, 2)
 
-def compute_occlusion_score_flow_field(Mm, lim=1.45, num_vectors_per_dim=11, vector_rescale_factor=0.4):
+def compute_occlusion_score_flow_field(Mm, t, lim=1.4, num_vectors_per_dim=14, vector_rescale_factor=0.4):
     '''computes the flow field for a continuous likelihood model, for a grid of hypothetical data points x_hyps
     '''
     # construct a grid of hypothetical data points
@@ -88,6 +88,7 @@ def compute_occlusion_score_flow_field(Mm, lim=1.45, num_vectors_per_dim=11, vec
     x_hyps = torch.tensor(x_hyps, dtype=torch.float)
     
     scores = compute_occlusion_score(x_hyps, Mm)
+    scores = t * scores
     scores = (scores.T/torch.norm(scores, dim=1)**vector_rescale_factor).T
     
     color = np.hypot(scores[:, 0], scores[:, 1])**2
@@ -128,7 +129,7 @@ def calculate_prior_score_flow_field(prior_sampler, lim=1.5, num_vectors_per_dim
     color = np.hypot(score_xs, score_ys)**2
     return score_xs, score_ys, color
 
-def calculate_posterior_score_flow_field_bu(temps, lim, num_vectors_per_dim, diffusion_model, Mm, llh_sigma=0.2, llh_weight=0.5, vector_rescale_factor=0.6):
+def calculate_posterior_score_flow_field_bu(temps, lim, num_vectors_per_dim, diffusion_model, Mm, llh_sigma=0.2, llh_weight=0.5, vector_rescale_factor=0.9):
     '''display the flow field for the posterior score for a continuous likelihood
     '''
     
@@ -148,7 +149,7 @@ def calculate_posterior_score_flow_field_bu(temps, lim, num_vectors_per_dim, dif
                 
                 likelihood_score = compute_occlusion_score(x, Mm, sigma=llh_sigma)
                 
-                posterior_score = -diffuser_score + llh_weight*likelihood_score
+                posterior_score = -diffuser_score + llh_weight * t * likelihood_score
                 
                 posterior_score = posterior_score/torch.norm(posterior_score, dim=1)**vector_rescale_factor
                 

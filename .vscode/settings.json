@@ -1,3 +1,6 @@
 {
-    "python.analysis.extraPaths": ["${workspaceFolder}/core", "${workspaceFolder}/core/utils"],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/core",
+        "${workspaceFolder}/core/utils"
+    ]
 }
