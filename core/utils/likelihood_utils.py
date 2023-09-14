@@ -186,7 +186,7 @@ def posterior_sample(prior_sampler, t, z, x, L, sigma, s, num_steps, alphas, bet
     mean = (1 / extract(alphas, t, z).sqrt()) * (z - (eps_factor * eps_theta))
     
     # Likelihoood score
-    likelihood_score = compute_continuous_likelihood_score(z, x, L, sigma)
+    likelihood_score = compute_continuous_likelihood_score(mean, x, L, sigma)
     
     # Generate z
     noise = torch.randn_like(z, device=device, dtype=torch.float)
@@ -234,7 +234,7 @@ def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alp
     mean = (1 / extract(alphas, t, z).sqrt()) * (z - (eps_factor * eps_theta))
     
     # Likelihoood score
-    likelihood_score = compute_occlusion_score(z, Mm, sigma)
+    likelihood_score = compute_occlusion_score(mean, Mm, sigma)
     
     # Generate z
     noise = torch.randn_like(z, device=device, dtype=torch.float)
