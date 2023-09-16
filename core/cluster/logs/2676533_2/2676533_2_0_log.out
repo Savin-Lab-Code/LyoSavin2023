@@ -1,0 +1,4 @@
+submitit INFO (2023-09-16 02:15:57,124) - Starting with JobEnvironment(job_id=2676533_2, hostname=worker6014, local_rank=0(1), node=0(1), global_rank=0(1))
+submitit INFO (2023-09-16 02:15:57,124) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/2676533_2/2676533_2_submitted.pkl
+model loaded!
+submitit INFO (2023-09-16 02:51:01,540) - Job completed successfully
