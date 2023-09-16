@@ -112,7 +112,7 @@ def linear_beta_schedule(timesteps, start=0.0001, end=0.02):
     return torch.linspace(start, end, timesteps)
 
 
-def make_beta_schedule(schedule='linear', n_timesteps=1000, start=1e-5, end=1e-2, device='cpu'):
+def make_beta_schedule(schedule='linear', n_timesteps=100, start=1e-5, end=1e-2, device='cpu'):
     if schedule == 'linear':
         betas = torch.linspace(start, end, n_timesteps)
     elif schedule == "quad":
@@ -121,12 +121,9 @@ def make_beta_schedule(schedule='linear', n_timesteps=1000, start=1e-5, end=1e-2
         betas = torch.linspace(-6, 6, n_timesteps, device=device)
         betas = torch.sigmoid(betas) * (end - start) + start
     elif schedule == 'sine':
-        # betas = torch.linspace(start, end, n_timesteps)
-        # betas = torch.sin(betas)
-        
         linspace = torch.linspace(0, np.pi, n_timesteps)
-        modulator = 0.5 * torch.cos(linspace) + 0.5
-        betas = (end - start) * (1-modulator) + start
+        modulator = 1 - torch.cos(linspace)
+        betas = (end - start)/2 * (modulator) + start
     return betas
 
 

@@ -30,18 +30,11 @@ def compute_continuous_likelihood(z_i, x, L, sigma):
     '''
     computes p(X = x_i | Z = z_i)
     Given a data point z_i, compute the likelihood of observing x
-    '''
-    # L = torch.tensor(L, dtype=torch.float)
-    # z_i = torch.tensor(z_i, dtype=torch.float)
-    # x = torch.tensor(x, dtype=torch.float)
-    
+    '''    
     x_mean = torch.mm(L, z_i.T)
-    # print(x_mean.shape)
-    # print(x.shape)
     assert x_mean.shape[0] == x.shape[0]
     
     prob = torch.exp(-torch.sum(torch.square(x - x_mean), axis=0) / (2 * sigma**2))
-    # prob = prob.requires_grad_(True)
     return prob
 
 
@@ -202,6 +195,9 @@ def posterior_sample(prior_sampler, t, z, x, L, sigma, s, num_steps, alphas, bet
     return (sample)
 
 def posterior_sample_loop(prior_sampler, x, L, sigma, s, shape, n_steps, device='cpu'):
+    '''
+    this is for a simple Gaussian sensory likelihood where the mean is the data point x
+    '''
     betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
     
     cur_z = torch.randn(shape, device=device, dtype=torch.float)
@@ -213,7 +209,7 @@ def posterior_sample_loop(prior_sampler, x, L, sigma, s, shape, n_steps, device=
     return z_seq
 
 
-def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device='cpu'):    
+def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, eval_at_mean=False, device='cpu'):    
     '''
     Given a data point x, sample from the posterior transition distribution p(z_t|z_{t+1},x)
     '''
@@ -234,12 +230,17 @@ def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alp
     mean = (1 / extract(alphas, t, z).sqrt()) * (z - (eps_factor * eps_theta))
     
     # Likelihoood score
-    likelihood_score = compute_occlusion_score(mean, Mm, sigma)
+    if eval_at_mean:
+        # evaluating the likelihood score at the mean of the prior transition operator
+        likelihood_score = compute_occlusion_score(mean, Mm, sigma)
+    else:
+        # evaluating the likelihood score at the current sample
+        likelihood_score = compute_occlusion_score(z, Mm, sigma)
     
     # Generate z
     noise = torch.randn_like(z, device=device, dtype=torch.float)
     
-    # Fixed sigma
+    # sigma
     sigma_t = extract(betas, t, z).sqrt()
     
     # Posterior mean: \mu + \sigma_t * \nabla_x log p(y | x)
@@ -249,7 +250,10 @@ def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alp
     # sample = mean + sigma_t * noise
     return (sample)
 
-def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=100, status_bar=False, device='cpu'):
+def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=100, eval_at_mean=False, status_bar=False, device='cpu'):
+    '''
+    this computes the posterior samples given a sensory likelihood that is a linear constraint Mx = 0 
+    '''
     betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
     
     cur_z = torch.randn(shape, device=device, dtype=torch.float)
@@ -262,7 +266,7 @@ def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=1
     for t in reversed(range(n_steps)):
         if t % step == 0 and status_bar:
             print(f'step {n_steps-t}/{n_steps}')
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, eval_at_mean, device)
         z_seq.append(cur_z)
     z_seq = torch.stack(z_seq).detach().numpy()
     return z_seq
@@ -286,25 +290,25 @@ def reversed_forward_process_posterior_loop_occlusion(prior_sampler, z_0, M, sig
     return z_seq
 
 
-def sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, device='cpu'):
+def sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean=False, device='cpu'):
     # biological forward process
     z_forward = [cur_z]
     for t in range(n_steps):
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, eval_at_mean, device)
         z_forward.append(cur_z)
     z_forward = torch.stack(z_forward)
     
     # reverse process
     z_reverse = [cur_z]
     for t in reversed(range(n_steps)):
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, eval_at_mean, device)
         z_reverse.append(cur_z)
     z_reverse = torch.stack(z_reverse)
     
     return cur_z, z_forward, z_reverse
 
 # ------------- sequential sampling of the posterior distribution ------------ #
-def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_steps=100, burn=True, device='cpu', status_bar=False):
+def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_steps=100, burn=True, device='cpu', status_bar=False, eval_at_mean=False):
     '''
     for a given continuous likelihood, generate samples to/from the posterior distribution sequentially (rather than iid). 
     '''
@@ -320,7 +324,7 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     
     # burn the first sample
     if burn:
-        cur_z = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, device)[0]
+        cur_z = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean, device)[0]
     else: 
         print('not burning')
         cur_z = cur_z
@@ -331,7 +335,7 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     for j in range(num_cycles):
         if j % step == 0 and status_bar:
             print(f'cycle {j}/{num_cycles}')
-        cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, device)
+        cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean, device)
         z_seq.append(cur_z)
         z_rev_seq.append(z_reverse)
     z_seq = torch.stack(z_seq).detach().numpy().reshape(num_cycles, -1, 2)
@@ -578,6 +582,18 @@ def calculate_histogram_for_seq_data(seq_data, num_bins, lim):
     histograms = np.stack(histograms)
     return histograms
 
+def calculate_histogram_for_iid_data(iid_data, num_bins, lim):
+    '''
+    takes in a sequence of samples of shape (num_steps, num_samples, num_amb_dim=2) and returns a histogram of the data of shape (num_bins, num_bins)
+    '''
+    num_steps = iid_data.shape[0]
+    bins = np.linspace(-lim, lim, num_bins+1)
+
+    histograms = []
+    for theta in range(num_steps):
+        histograms.append(np.histogram2d(iid_data[theta, :, 0], iid_data[theta, :, 1], bins=bins)[0])
+    histograms = np.stack(histograms)
+    return histograms
 
 # ---------------------- for the class conditional model --------------------- #
 @torch.no_grad()
