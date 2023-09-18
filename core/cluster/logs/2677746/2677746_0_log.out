@@ -1,0 +1,405 @@
+submitit INFO (2023-09-17 03:26:11,708) - Starting with JobEnvironment(job_id=2677746, hostname=workergpu094, local_rank=0(1), node=0(1), global_rank=0(1))
+submitit INFO (2023-09-17 03:26:11,709) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/2677746/2677746_submitted.pkl
+Using device: cuda
+model loaded!
+so far, this process took 0.00 minutes, which is 0.00 hours.
+run number: 1/200
+so far, this process took 7.72 minutes, which is 0.13 hours.
+run number: 2/200
+so far, this process took 15.29 minutes, which is 0.25 hours.
+run number: 3/200
+so far, this process took 22.93 minutes, which is 0.38 hours.
+run number: 4/200
+so far, this process took 30.55 minutes, which is 0.51 hours.
+run number: 5/200
+so far, this process took 38.04 minutes, which is 0.63 hours.
+run number: 6/200
+so far, this process took 45.50 minutes, which is 0.76 hours.
+run number: 7/200
+so far, this process took 52.91 minutes, which is 0.88 hours.
+run number: 8/200
+so far, this process took 60.27 minutes, which is 1.00 hours.
+run number: 9/200
+so far, this process took 67.60 minutes, which is 1.13 hours.
+run number: 10/200
+so far, this process took 74.95 minutes, which is 1.25 hours.
+run number: 11/200
+so far, this process took 82.25 minutes, which is 1.37 hours.
+run number: 12/200
+so far, this process took 89.58 minutes, which is 1.49 hours.
+run number: 13/200
+so far, this process took 96.99 minutes, which is 1.62 hours.
+run number: 14/200
+so far, this process took 104.32 minutes, which is 1.74 hours.
+run number: 15/200
+so far, this process took 111.63 minutes, which is 1.86 hours.
+run number: 16/200
+so far, this process took 118.94 minutes, which is 1.98 hours.
+run number: 17/200
+so far, this process took 126.12 minutes, which is 2.10 hours.
+run number: 18/200
+so far, this process took 133.22 minutes, which is 2.22 hours.
+run number: 19/200
+so far, this process took 140.48 minutes, which is 2.34 hours.
+run number: 20/200
+so far, this process took 147.73 minutes, which is 2.46 hours.
+run number: 21/200
+so far, this process took 154.92 minutes, which is 2.58 hours.
+run number: 22/200
+so far, this process took 162.13 minutes, which is 2.70 hours.
+run number: 23/200
+so far, this process took 169.30 minutes, which is 2.82 hours.
+run number: 24/200
+so far, this process took 176.46 minutes, which is 2.94 hours.
+run number: 25/200
+so far, this process took 183.64 minutes, which is 3.06 hours.
+run number: 26/200
+so far, this process took 190.74 minutes, which is 3.18 hours.
+run number: 27/200
+so far, this process took 197.95 minutes, which is 3.30 hours.
+run number: 28/200
+so far, this process took 205.09 minutes, which is 3.42 hours.
+run number: 29/200
+so far, this process took 212.25 minutes, which is 3.54 hours.
+run number: 30/200
+so far, this process took 219.38 minutes, which is 3.66 hours.
+run number: 31/200
+so far, this process took 226.54 minutes, which is 3.78 hours.
+run number: 32/200
+so far, this process took 233.64 minutes, which is 3.89 hours.
+run number: 33/200
+so far, this process took 240.81 minutes, which is 4.01 hours.
+run number: 34/200
+so far, this process took 248.01 minutes, which is 4.13 hours.
+run number: 35/200
+so far, this process took 255.18 minutes, which is 4.25 hours.
+run number: 36/200
+so far, this process took 262.33 minutes, which is 4.37 hours.
+run number: 37/200
+so far, this process took 269.49 minutes, which is 4.49 hours.
+run number: 38/200
+so far, this process took 276.64 minutes, which is 4.61 hours.
+run number: 39/200
+so far, this process took 283.74 minutes, which is 4.73 hours.
+run number: 40/200
+so far, this process took 290.91 minutes, which is 4.85 hours.
+run number: 41/200
+so far, this process took 298.17 minutes, which is 4.97 hours.
+run number: 42/200
+so far, this process took 305.35 minutes, which is 5.09 hours.
+run number: 43/200
+so far, this process took 312.55 minutes, which is 5.21 hours.
+run number: 44/200
+so far, this process took 319.82 minutes, which is 5.33 hours.
+run number: 45/200
+so far, this process took 326.98 minutes, which is 5.45 hours.
+run number: 46/200
+so far, this process took 334.23 minutes, which is 5.57 hours.
+run number: 47/200
+so far, this process took 341.48 minutes, which is 5.69 hours.
+run number: 48/200
+so far, this process took 348.77 minutes, which is 5.81 hours.
+run number: 49/200
+so far, this process took 355.97 minutes, which is 5.93 hours.
+run number: 50/200
+so far, this process took 363.22 minutes, which is 6.05 hours.
+run number: 51/200
+so far, this process took 370.52 minutes, which is 6.18 hours.
+run number: 52/200
+so far, this process took 377.77 minutes, which is 6.30 hours.
+run number: 53/200
+so far, this process took 384.97 minutes, which is 6.42 hours.
+run number: 54/200
+so far, this process took 392.29 minutes, which is 6.54 hours.
+run number: 55/200
+so far, this process took 399.56 minutes, which is 6.66 hours.
+run number: 56/200
+so far, this process took 406.79 minutes, which is 6.78 hours.
+run number: 57/200
+so far, this process took 414.06 minutes, which is 6.90 hours.
+run number: 58/200
+so far, this process took 421.39 minutes, which is 7.02 hours.
+run number: 59/200
+so far, this process took 428.63 minutes, which is 7.14 hours.
+run number: 60/200
+so far, this process took 435.87 minutes, which is 7.26 hours.
+run number: 61/200
+so far, this process took 443.09 minutes, which is 7.38 hours.
+run number: 62/200
+so far, this process took 450.31 minutes, which is 7.51 hours.
+run number: 63/200
+so far, this process took 457.54 minutes, which is 7.63 hours.
+run number: 64/200
+so far, this process took 464.78 minutes, which is 7.75 hours.
+run number: 65/200
+so far, this process took 472.00 minutes, which is 7.87 hours.
+run number: 66/200
+so far, this process took 479.16 minutes, which is 7.99 hours.
+run number: 67/200
+so far, this process took 486.39 minutes, which is 8.11 hours.
+run number: 68/200
+so far, this process took 493.59 minutes, which is 8.23 hours.
+run number: 69/200
+so far, this process took 500.81 minutes, which is 8.35 hours.
+run number: 70/200
+so far, this process took 508.06 minutes, which is 8.47 hours.
+run number: 71/200
+so far, this process took 515.17 minutes, which is 8.59 hours.
+run number: 72/200
+so far, this process took 522.40 minutes, which is 8.71 hours.
+run number: 73/200
+so far, this process took 529.53 minutes, which is 8.83 hours.
+run number: 74/200
+so far, this process took 536.76 minutes, which is 8.95 hours.
+run number: 75/200
+so far, this process took 543.95 minutes, which is 9.07 hours.
+run number: 76/200
+so far, this process took 551.19 minutes, which is 9.19 hours.
+run number: 77/200
+so far, this process took 558.43 minutes, which is 9.31 hours.
+run number: 78/200
+so far, this process took 565.65 minutes, which is 9.43 hours.
+run number: 79/200
+so far, this process took 572.88 minutes, which is 9.55 hours.
+run number: 80/200
+so far, this process took 580.02 minutes, which is 9.67 hours.
+run number: 81/200
+so far, this process took 587.29 minutes, which is 9.79 hours.
+run number: 82/200
+so far, this process took 594.52 minutes, which is 9.91 hours.
+run number: 83/200
+so far, this process took 601.71 minutes, which is 10.03 hours.
+run number: 84/200
+so far, this process took 608.98 minutes, which is 10.15 hours.
+run number: 85/200
+so far, this process took 616.19 minutes, which is 10.27 hours.
+run number: 86/200
+so far, this process took 623.46 minutes, which is 10.39 hours.
+run number: 87/200
+so far, this process took 630.66 minutes, which is 10.51 hours.
+run number: 88/200
+so far, this process took 637.78 minutes, which is 10.63 hours.
+run number: 89/200
+so far, this process took 645.00 minutes, which is 10.75 hours.
+run number: 90/200
+so far, this process took 652.18 minutes, which is 10.87 hours.
+run number: 91/200
+so far, this process took 659.38 minutes, which is 10.99 hours.
+run number: 92/200
+so far, this process took 666.59 minutes, which is 11.11 hours.
+run number: 93/200
+so far, this process took 673.74 minutes, which is 11.23 hours.
+run number: 94/200
+so far, this process took 680.99 minutes, which is 11.35 hours.
+run number: 95/200
+so far, this process took 688.15 minutes, which is 11.47 hours.
+run number: 96/200
+so far, this process took 695.36 minutes, which is 11.59 hours.
+run number: 97/200
+so far, this process took 702.66 minutes, which is 11.71 hours.
+run number: 98/200
+so far, this process took 709.88 minutes, which is 11.83 hours.
+run number: 99/200
+so far, this process took 717.09 minutes, which is 11.95 hours.
+run number: 100/200
+so far, this process took 724.32 minutes, which is 12.07 hours.
+run number: 101/200
+so far, this process took 731.52 minutes, which is 12.19 hours.
+run number: 102/200
+so far, this process took 738.71 minutes, which is 12.31 hours.
+run number: 103/200
+so far, this process took 745.87 minutes, which is 12.43 hours.
+run number: 104/200
+so far, this process took 753.14 minutes, which is 12.55 hours.
+run number: 105/200
+so far, this process took 760.28 minutes, which is 12.67 hours.
+run number: 106/200
+so far, this process took 767.49 minutes, which is 12.79 hours.
+run number: 107/200
+so far, this process took 774.73 minutes, which is 12.91 hours.
+run number: 108/200
+so far, this process took 781.92 minutes, which is 13.03 hours.
+run number: 109/200
+so far, this process took 789.09 minutes, which is 13.15 hours.
+run number: 110/200
+so far, this process took 796.29 minutes, which is 13.27 hours.
+run number: 111/200
+so far, this process took 803.45 minutes, which is 13.39 hours.
+run number: 112/200
+so far, this process took 810.71 minutes, which is 13.51 hours.
+run number: 113/200
+so far, this process took 817.91 minutes, which is 13.63 hours.
+run number: 114/200
+so far, this process took 825.08 minutes, which is 13.75 hours.
+run number: 115/200
+so far, this process took 832.20 minutes, which is 13.87 hours.
+run number: 116/200
+so far, this process took 839.48 minutes, which is 13.99 hours.
+run number: 117/200
+so far, this process took 846.64 minutes, which is 14.11 hours.
+run number: 118/200
+so far, this process took 853.93 minutes, which is 14.23 hours.
+run number: 119/200
+so far, this process took 861.16 minutes, which is 14.35 hours.
+run number: 120/200
+so far, this process took 868.39 minutes, which is 14.47 hours.
+run number: 121/200
+so far, this process took 875.62 minutes, which is 14.59 hours.
+run number: 122/200
+so far, this process took 882.86 minutes, which is 14.71 hours.
+run number: 123/200
+so far, this process took 890.09 minutes, which is 14.83 hours.
+run number: 124/200
+so far, this process took 897.31 minutes, which is 14.96 hours.
+run number: 125/200
+so far, this process took 904.54 minutes, which is 15.08 hours.
+run number: 126/200
+so far, this process took 911.77 minutes, which is 15.20 hours.
+run number: 127/200
+so far, this process took 918.93 minutes, which is 15.32 hours.
+run number: 128/200
+so far, this process took 926.19 minutes, which is 15.44 hours.
+run number: 129/200
+so far, this process took 933.39 minutes, which is 15.56 hours.
+run number: 130/200
+so far, this process took 940.58 minutes, which is 15.68 hours.
+run number: 131/200
+so far, this process took 947.78 minutes, which is 15.80 hours.
+run number: 132/200
+so far, this process took 954.98 minutes, which is 15.92 hours.
+run number: 133/200
+so far, this process took 962.24 minutes, which is 16.04 hours.
+run number: 134/200
+so far, this process took 969.48 minutes, which is 16.16 hours.
+run number: 135/200
+so far, this process took 976.74 minutes, which is 16.28 hours.
+run number: 136/200
+so far, this process took 984.00 minutes, which is 16.40 hours.
+run number: 137/200
+so far, this process took 991.24 minutes, which is 16.52 hours.
+run number: 138/200
+so far, this process took 998.48 minutes, which is 16.64 hours.
+run number: 139/200
+so far, this process took 1005.67 minutes, which is 16.76 hours.
+run number: 140/200
+so far, this process took 1012.88 minutes, which is 16.88 hours.
+run number: 141/200
+so far, this process took 1020.15 minutes, which is 17.00 hours.
+run number: 142/200
+so far, this process took 1027.39 minutes, which is 17.12 hours.
+run number: 143/200
+so far, this process took 1034.63 minutes, which is 17.24 hours.
+run number: 144/200
+so far, this process took 1041.87 minutes, which is 17.36 hours.
+run number: 145/200
+so far, this process took 1049.06 minutes, which is 17.48 hours.
+run number: 146/200
+so far, this process took 1056.34 minutes, which is 17.61 hours.
+run number: 147/200
+so far, this process took 1063.56 minutes, which is 17.73 hours.
+run number: 148/200
+so far, this process took 1070.75 minutes, which is 17.85 hours.
+run number: 149/200
+so far, this process took 1078.00 minutes, which is 17.97 hours.
+run number: 150/200
+so far, this process took 1085.21 minutes, which is 18.09 hours.
+run number: 151/200
+so far, this process took 1092.39 minutes, which is 18.21 hours.
+run number: 152/200
+so far, this process took 1099.64 minutes, which is 18.33 hours.
+run number: 153/200
+so far, this process took 1106.88 minutes, which is 18.45 hours.
+run number: 154/200
+so far, this process took 1114.07 minutes, which is 18.57 hours.
+run number: 155/200
+so far, this process took 1121.30 minutes, which is 18.69 hours.
+run number: 156/200
+so far, this process took 1128.59 minutes, which is 18.81 hours.
+run number: 157/200
+so far, this process took 1135.80 minutes, which is 18.93 hours.
+run number: 158/200
+so far, this process took 1143.03 minutes, which is 19.05 hours.
+run number: 159/200
+so far, this process took 1150.23 minutes, which is 19.17 hours.
+run number: 160/200
+so far, this process took 1157.44 minutes, which is 19.29 hours.
+run number: 161/200
+so far, this process took 1164.74 minutes, which is 19.41 hours.
+run number: 162/200
+so far, this process took 1172.04 minutes, which is 19.53 hours.
+run number: 163/200
+so far, this process took 1179.32 minutes, which is 19.66 hours.
+run number: 164/200
+so far, this process took 1186.56 minutes, which is 19.78 hours.
+run number: 165/200
+so far, this process took 1193.90 minutes, which is 19.90 hours.
+run number: 166/200
+so far, this process took 1201.21 minutes, which is 20.02 hours.
+run number: 167/200
+so far, this process took 1208.44 minutes, which is 20.14 hours.
+run number: 168/200
+so far, this process took 1215.72 minutes, which is 20.26 hours.
+run number: 169/200
+so far, this process took 1223.05 minutes, which is 20.38 hours.
+run number: 170/200
+so far, this process took 1230.35 minutes, which is 20.51 hours.
+run number: 171/200
+so far, this process took 1237.63 minutes, which is 20.63 hours.
+run number: 172/200
+so far, this process took 1244.91 minutes, which is 20.75 hours.
+run number: 173/200
+so far, this process took 1252.14 minutes, which is 20.87 hours.
+run number: 174/200
+so far, this process took 1259.41 minutes, which is 20.99 hours.
+run number: 175/200
+so far, this process took 1266.68 minutes, which is 21.11 hours.
+run number: 176/200
+so far, this process took 1274.00 minutes, which is 21.23 hours.
+run number: 177/200
+so far, this process took 1281.40 minutes, which is 21.36 hours.
+run number: 178/200
+so far, this process took 1288.78 minutes, which is 21.48 hours.
+run number: 179/200
+so far, this process took 1296.05 minutes, which is 21.60 hours.
+run number: 180/200
+so far, this process took 1303.42 minutes, which is 21.72 hours.
+run number: 181/200
+so far, this process took 1310.79 minutes, which is 21.85 hours.
+run number: 182/200
+so far, this process took 1318.12 minutes, which is 21.97 hours.
+run number: 183/200
+so far, this process took 1325.40 minutes, which is 22.09 hours.
+run number: 184/200
+so far, this process took 1332.75 minutes, which is 22.21 hours.
+run number: 185/200
+so far, this process took 1340.17 minutes, which is 22.34 hours.
+run number: 186/200
+so far, this process took 1347.52 minutes, which is 22.46 hours.
+run number: 187/200
+so far, this process took 1354.89 minutes, which is 22.58 hours.
+run number: 188/200
+so far, this process took 1362.18 minutes, which is 22.70 hours.
+run number: 189/200
+so far, this process took 1369.57 minutes, which is 22.83 hours.
+run number: 190/200
+so far, this process took 1376.92 minutes, which is 22.95 hours.
+run number: 191/200
+so far, this process took 1384.26 minutes, which is 23.07 hours.
+run number: 192/200
+so far, this process took 1391.57 minutes, which is 23.19 hours.
+run number: 193/200
+so far, this process took 1398.90 minutes, which is 23.32 hours.
+run number: 194/200
+so far, this process took 1406.25 minutes, which is 23.44 hours.
+run number: 195/200
+so far, this process took 1413.54 minutes, which is 23.56 hours.
+run number: 196/200
+so far, this process took 1420.78 minutes, which is 23.68 hours.
+run number: 197/200
+so far, this process took 1428.01 minutes, which is 23.80 hours.
+run number: 198/200
+so far, this process took 1435.26 minutes, which is 23.92 hours.
+run number: 199/200
+so far, this process took 1442.45 minutes, which is 24.04 hours.
+run number: 200/200
+submitit INFO (2023-09-18 03:36:06,882) - Job completed successfully

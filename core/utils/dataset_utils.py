@@ -680,7 +680,7 @@ def generate_2d_swiss_roll(num_samples, rescaled=True, return_as_tensor=False):
         clean_manifold = np.vstack([x, y]).T
         
         if return_as_tensor:
-            print('returning as tensor')
+            # print('returning as tensor')
             t = torch.tensor(t, dtype=torch.float)
             clean_manifold = torch.tensor(clean_manifold, dtype=torch.float)
         
@@ -688,7 +688,7 @@ def generate_2d_swiss_roll(num_samples, rescaled=True, return_as_tensor=False):
     
     clean_manifold = np.vstack([x, y]).T
     if return_as_tensor:
-        print('returning as tensor')
+        # print('returning as tensor')
         t = torch.tensor(t, dtype=torch.float)
         clean_manifold = torch.tensor(clean_manifold, dtype=torch.float)
     print(type(clean_manifold))

@@ -1,0 +1,5 @@
+submitit INFO (2023-09-17 03:19:12,062) - Starting with JobEnvironment(job_id=2677742, hostname=workergpu118, local_rank=0(1), node=0(1), global_rank=0(1))
+submitit INFO (2023-09-17 03:19:12,063) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/2677742/2677742_submitted.pkl
+Using device: cuda
+model loaded!
+submitit ERROR (2023-09-17 03:19:15,155) - Submitted job triggered an exception

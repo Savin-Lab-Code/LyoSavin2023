@@ -52,14 +52,14 @@ def compute_continuous_likelihood_score(z, x, L, sigma):
     logits = torch.log(probs)  # this is = log p(x|z)
     return torch.autograd.grad(logits, z, torch.ones_like(logits))[0]
 
-def compute_occlusion_score(zs, Mm, sigma=1):
+def compute_occlusion_score(zs, Mm, sigma, device):
     '''takes in a batch of z and calculates the score for a given deterministic constraint
     '''
     scores = []
     for z in zs:
         z = z.reshape(1, -1).requires_grad_(True)
         # residual = z - z_c = (I - MM^T) z
-        residual = (torch.eye(2) - Mm) @ z.T
+        residual = (torch.eye(2, device=device) - Mm) @ z.T
         dist = torch.norm(residual)**2 / (2*sigma**2)
         score = -torch.autograd.grad(dist, z, torch.ones_like(dist))[0]
         scores.append(score)
@@ -232,10 +232,10 @@ def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alp
     # Likelihoood score
     if eval_at_mean:
         # evaluating the likelihood score at the mean of the prior transition operator
-        likelihood_score = compute_occlusion_score(mean, Mm, sigma)
+        likelihood_score = compute_occlusion_score(mean, Mm, sigma, device)
     else:
         # evaluating the likelihood score at the current sample
-        likelihood_score = compute_occlusion_score(z, Mm, sigma)
+        likelihood_score = compute_occlusion_score(z, Mm, sigma, device)
     
     # Generate z
     noise = torch.randn_like(z, device=device, dtype=torch.float)
@@ -261,14 +261,17 @@ def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=1
 
     Mm = M @ M.T
     Mm = torch.from_numpy(Mm).float()
+    Mm = Mm.to(device)
+
+    sigma = sigma.to(device)
 
     step = n_steps // 10
     for t in reversed(range(n_steps)):
         if t % step == 0 and status_bar:
-            print(f'step {n_steps-t}/{n_steps}')
+            print(f'step {n_steps-t}/{n_steps}', flush=True)
         cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, eval_at_mean, device)
         z_seq.append(cur_z)
-    z_seq = torch.stack(z_seq).detach().numpy()
+    z_seq = torch.stack(z_seq).detach().cpu().numpy()
     return z_seq
 
 
@@ -318,9 +321,11 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
         cur_z = torch.tensor(z, dtype=torch.float)
     else: 
         cur_z = z
+    cur_z = cur_z.to(device)
     
     Mm = M @ M.T
     Mm = torch.from_numpy(Mm).float()
+    Mm = Mm.to(device)
     
     # burn the first sample
     if burn:
@@ -334,12 +339,12 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     step = num_cycles // 10
     for j in range(num_cycles):
         if j % step == 0 and status_bar:
-            print(f'cycle {j}/{num_cycles}')
+            print(f'cycle {j}/{num_cycles}', flush=True)
         cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean, device)
         z_seq.append(cur_z)
         z_rev_seq.append(z_reverse)
-    z_seq = torch.stack(z_seq).detach().numpy().reshape(num_cycles, -1, 2)
-    z_rev_seq = torch.stack(z_rev_seq).detach().numpy().reshape(num_cycles, -1, 2)
+    z_seq = torch.stack(z_seq).detach().cpu().numpy().reshape(num_cycles, -1, 2)
+    z_rev_seq = torch.stack(z_rev_seq).detach().cpu().numpy().reshape(num_cycles, -1, 2)
     
     return z_seq, z_rev_seq
 

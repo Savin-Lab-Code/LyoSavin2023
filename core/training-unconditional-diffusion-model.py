@@ -256,7 +256,7 @@ def main():
         slurm_gpus_per_task=1,
         slurm_constraint='v100-32gb',
         cpus_per_task=12,
-        mem_gb=8,
+        mem_gb=32,
         timeout_min=120,
     )
 

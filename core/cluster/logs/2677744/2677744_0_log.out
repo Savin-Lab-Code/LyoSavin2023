@@ -1,0 +1,25 @@
+submitit INFO (2023-09-17 03:22:40,393) - Starting with JobEnvironment(job_id=2677744, hostname=workergpu118, local_rank=0(1), node=0(1), global_rank=0(1))
+submitit INFO (2023-09-17 03:22:40,394) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/2677744/2677744_submitted.pkl
+Using device: cuda
+model loaded!
+so far, this process took 0.00 minutes, which is 0.00 hours.
+run number: 0/10
+so far, this process took 0.12 minutes, which is 0.00 hours.
+run number: 1/10
+so far, this process took 0.20 minutes, which is 0.00 hours.
+run number: 2/10
+so far, this process took 0.29 minutes, which is 0.00 hours.
+run number: 3/10
+so far, this process took 0.37 minutes, which is 0.01 hours.
+run number: 4/10
+so far, this process took 0.45 minutes, which is 0.01 hours.
+run number: 5/10
+so far, this process took 0.54 minutes, which is 0.01 hours.
+run number: 6/10
+so far, this process took 0.62 minutes, which is 0.01 hours.
+run number: 7/10
+so far, this process took 0.71 minutes, which is 0.01 hours.
+run number: 8/10
+so far, this process took 0.79 minutes, which is 0.01 hours.
+run number: 9/10
+submitit INFO (2023-09-17 03:23:36,229) - Job completed successfully
