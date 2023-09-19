@@ -1,7 +1,11 @@
 import os, sys
 project_root = os.path.abspath("")
-base_dir = os.path.dirname(project_root)
+if project_root[-12:] == 'LyoSavin2023':
+    base_dir = project_root
+else:
+    base_dir = os.path.dirname(project_root)
 sys.path.append(os.path.join(base_dir, 'core'))
+sys.path.append(os.path.join(base_dir, 'core/utils'))
 
 import torch
 import numpy as np
@@ -171,15 +175,19 @@ def forward_process_with_plots(num_steps,
     return params
 
 
-def draw_constraint_line(ax, v, constraint_sigma, lim, show_stdev=True):
+def draw_constraint_line(ax, v, constraint_sigma, lim, show_stdev=True, double_std=False):
     ls = np.linspace(-lim, lim, 50)
     v1 = v[1][0] / v[0][0]
     v0 = v[0][0] / v[0][0]
+    if double_std:
+        num_devs = 2
+    else:
+        num_devs = 1
     
     ax.plot(ls * v0, ls * v1, c='green')
     if show_stdev:
-        below = ls * v1 - 2 * constraint_sigma / np.cos(np.arctan(v1/v0))
-        above = ls * v1 + 2 * constraint_sigma / np.cos(np.arctan(v1/v0))
+        below = ls * v1 - num_devs * constraint_sigma / np.cos(np.arctan(v1/v0))
+        above = ls * v1 + num_devs * constraint_sigma / np.cos(np.arctan(v1/v0))
         ax.fill_between(ls * v0, below, above, color='green', alpha=0.3)
         
 def save_fig(fig, figname, savedir='plots', format='pdf'):

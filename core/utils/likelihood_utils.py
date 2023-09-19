@@ -67,7 +67,7 @@ def compute_occlusion_score(zs, Mm, sigma, device):
 
     return torch.stack(scores).reshape(-1, 2)
 
-def compute_occlusion_score_flow_field(Mm, t, lim=1.4, num_vectors_per_dim=14, vector_rescale_factor=0.4):
+def compute_occlusion_score_flow_field(Mm, sigma, t, lim=1.4, num_vectors_per_dim=14, vector_rescale_factor=0.4, device='cpu'):
     '''computes the flow field for a continuous likelihood model, for a grid of hypothetical data points x_hyps
     '''
     # construct a grid of hypothetical data points
@@ -80,7 +80,7 @@ def compute_occlusion_score_flow_field(Mm, t, lim=1.4, num_vectors_per_dim=14, v
     x_hyps = np.vstack(x_hyps)
     x_hyps = torch.tensor(x_hyps, dtype=torch.float)
     
-    scores = compute_occlusion_score(x_hyps, Mm)
+    scores = compute_occlusion_score(x_hyps, Mm, sigma, device)
     scores = t * scores
     scores = (scores.T/torch.norm(scores, dim=1)**vector_rescale_factor).T
     
@@ -159,7 +159,7 @@ def calculate_posterior_score_flow_field_bu(temps, lim, num_vectors_per_dim, dif
     return score_temps
 
 # ---------------------------- posterior sampling ---------------------------- #
-def posterior_sample(prior_sampler, t, z, x, L, sigma, s, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device='cpu'):    
+def posterior_sample(prior_sampler, t, z, x, L, sigma, s, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, normalized_beta_schedule=False, device='cpu'):    
     '''
     Given a data point x, sample from the posterior transition distribution p(z_t|z_{t+1},x)
     '''
@@ -172,7 +172,10 @@ def posterior_sample(prior_sampler, t, z, x, L, sigma, s, num_steps, alphas, bet
     eps_factor = ((1 - extract(alphas, t, z)) / extract(one_minus_alphas_prod_sqrt, t, z))
     
     # Diffusion model output
-    T = t.repeat(z.shape[0], 1) / num_steps
+    if normalized_beta_schedule:
+        T = t.repeat(z.shape[0], 1) / num_steps
+    else:
+        T = t.repeat(z.shape[0], 1)
     eps_theta = prior_sampler(z, T)
     
     # Final values
@@ -209,7 +212,7 @@ def posterior_sample_loop(prior_sampler, x, L, sigma, s, shape, n_steps, device=
     return z_seq
 
 
-def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, eval_at_mean=False, device='cpu'):    
+def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, normalized_beta_schedule=False, eval_at_mean=False, device='cpu'):    
     '''
     Given a data point x, sample from the posterior transition distribution p(z_t|z_{t+1},x)
     '''
@@ -222,8 +225,10 @@ def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alp
     eps_factor = ((1 - extract(alphas, t, z)) / extract(one_minus_alphas_prod_sqrt, t, z))
     
     # Diffusion model output
-    T = t.repeat(z.shape[0], 1) / num_steps
-    # T = t.repeat(z.shape[0], 1) 
+    if normalized_beta_schedule:
+        T = t.repeat(z.shape[0], 1) / num_steps
+    else:
+        T = t.repeat(z.shape[0], 1) 
     eps_theta = prior_sampler(z, T)
     
     # Final values
@@ -250,7 +255,7 @@ def posterior_sample_occlusion(prior_sampler, t, z, Mm, sigma, s, num_steps, alp
     # sample = mean + sigma_t * noise
     return (sample)
 
-def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=100, eval_at_mean=False, status_bar=False, device='cpu'):
+def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=100, normalized_beta_schedule=False, eval_at_mean=False, status_bar=False, device='cpu'):
     '''
     this computes the posterior samples given a sensory likelihood that is a linear constraint Mx = 0 
     '''
@@ -269,14 +274,14 @@ def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=1
     for t in reversed(range(n_steps)):
         if t % step == 0 and status_bar:
             print(f'step {n_steps-t}/{n_steps}', flush=True)
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, eval_at_mean, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, normalized_beta_schedule, eval_at_mean, device)
         z_seq.append(cur_z)
     z_seq = torch.stack(z_seq).detach().cpu().numpy()
     return z_seq
 
 
 # ----------- iid sampled posterior distribution -- forward process ---------- #
-def reversed_forward_process_posterior_loop_occlusion(prior_sampler, z_0, M, sigma, s, n_steps, alphas=None, betas=None, one_minus_alphas_prod_sqrt=None, device='cpu'):
+def reversed_forward_process_posterior_loop_occlusion(prior_sampler, z_0, M, sigma, s, n_steps, alphas=None, betas=None, one_minus_alphas_prod_sqrt=None, normalized_beta_schedule=False, device='cpu'):
     betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
     
     cur_z = z_0
@@ -287,31 +292,31 @@ def reversed_forward_process_posterior_loop_occlusion(prior_sampler, z_0, M, sig
 
     for t in range(n_steps):
         # cur_z, _ = p_sample_rev(prior_sampler, cur_z, t, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device='cpu')
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, normalized_beta_schedule, device)
         z_seq.append(cur_z)
     z_seq = torch.stack(z_seq)
     return z_seq
 
 
-def sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean=False, device='cpu'):
+def sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule=False, eval_at_mean=False, device='cpu'):
     # biological forward process
     z_forward = [cur_z]
     for t in range(n_steps):
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, eval_at_mean, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)
         z_forward.append(cur_z)
     z_forward = torch.stack(z_forward)
     
     # reverse process
     z_reverse = [cur_z]
     for t in reversed(range(n_steps)):
-        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, eval_at_mean, device)
+        cur_z = posterior_sample_occlusion(prior_sampler, t, cur_z, Mm, sigma, s, n_steps, alphas,betas,one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)
         z_reverse.append(cur_z)
     z_reverse = torch.stack(z_reverse)
     
     return cur_z, z_forward, z_reverse
 
 # ------------- sequential sampling of the posterior distribution ------------ #
-def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_steps=100, burn=True, device='cpu', status_bar=False, eval_at_mean=False):
+def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_steps=100, burn=True, normalized_beta_schedule=False, eval_at_mean=False, device='cpu', status_bar=False):
     '''
     for a given continuous likelihood, generate samples to/from the posterior distribution sequentially (rather than iid). 
     '''
@@ -329,7 +334,7 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     
     # burn the first sample
     if burn:
-        cur_z = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean, device)[0]
+        cur_z = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)[0]
     else: 
         print('not burning')
         cur_z = cur_z
@@ -340,7 +345,7 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     for j in range(num_cycles):
         if j % step == 0 and status_bar:
             print(f'cycle {j}/{num_cycles}', flush=True)
-        cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, eval_at_mean, device)
+        cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)
         z_seq.append(cur_z)
         z_rev_seq.append(z_reverse)
     z_seq = torch.stack(z_seq).detach().cpu().numpy().reshape(num_cycles, -1, 2)

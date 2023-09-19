@@ -2,5 +2,6 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}/core",
         "${workspaceFolder}/core/utils"
-    ]
+    ],
+    "python.analysis.typeCheckingMode": "basic"
 }
