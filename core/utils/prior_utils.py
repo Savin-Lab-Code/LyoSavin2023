@@ -249,31 +249,29 @@ def p_rev_loop(model, x_0, shape, n_steps, device, normalized_beta_schedule=Fals
 
 
 # ------- alternating between the neural forward and reverse processes ------- #
-def rad_ad_cycle(xi_rad, model, num_steps, normalized_beta_schedule=False):
+def neural_fwd_rev_cycle(x_fwd_i, model, num_steps, normalized_beta_schedule=False):
     '''
-    diffuses the datapoints using the RAD process, and then anti-diffuses using the AD process.
-    '''    
-    # assert xi_rad!=None
-    # if xi_rad==None:
-        # xi_rad = data_2d
-        
-    if type(xi_rad) == np.ndarray:
-        xi_rad = torch.tensor(xi_rad, dtype=torch.float)
+    undergoes one cycle of the oscillation.
+    diffuses the datapoints using the neural forward process, and then anti-diffuses using the neural reverse process.
+    '''
+    
+    if type(x_fwd_i) == np.ndarray:
+        x_fwd_i = torch.tensor(x_fwd_i, dtype=torch.float)
     else: 
-        xi_rad = xi_rad
+        x_fwd_i = x_fwd_i
     
-    # RAD (neural forward process)
-    x_rad_seq, _ = p_rev_loop(model, xi_rad, xi_rad.shape, num_steps, device, normalized_beta_schedule)
-    x_rad_seq = torch.stack(x_rad_seq).detach().cpu()
-    xf_rad = x_rad_seq[-1, :, :]
+    # neural forward process
+    x_fwd_seq = p_rev_loop(model, x_fwd_i, x_fwd_i.shape, num_steps, device, normalized_beta_schedule)[0]
+    x_fwd_seq = torch.stack(x_fwd_seq).detach().cpu()
+    x_fwd_f = x_fwd_seq[-1, :, :]
     
-    # AD (reverse process)
-    xi_ad = xf_rad
-    x_ad_seq = p_sample_loop(model, xi_ad.shape, num_steps, device, xi_ad, normalized_beta_schedule)
-    # x_ad_seq = torch.stack(x_ad_seq).detach().cpu()
-    xf_ad = x_ad_seq[-1, :, :]
+    # neural reverse process
+    x_rev_i = x_fwd_f
+    x_rev_seq = p_sample_loop(model, x_rev_i.shape, num_steps, device, x_rev_i, normalized_beta_schedule)
+    x_rev_f = x_rev_seq[-1, :, :]
 
-    return xf_ad, x_rad_seq, x_ad_seq
+    # return the final datapoint after one cycle of the oscillation, and the sequences of datapoints during the forward and reverse processes
+    return x_rev_f, x_fwd_seq, x_rev_seq
 
 
 def sequential_prior_sampler(model, init_x, num_cycles, num_steps=100, disable_tqdm=False, normalized_beta_schedule=False):
@@ -283,17 +281,15 @@ def sequential_prior_sampler(model, init_x, num_cycles, num_steps=100, disable_t
         init_x = init_x
 
     
-    # go through the rad-ad cycle multiple times
-    x_ad, x_fwd, x_rev = rad_ad_cycle(init_x, model, num_steps, normalized_beta_schedule)  # burn the first sample
-    
-    # print(x_ad)
+    # burn the first sample
+    x, x_fwd, x_rev = neural_fwd_rev_cycle(init_x, model, num_steps, normalized_beta_schedule)
     
     seq_x = []
     seq_fwd_x = []
     seq_rev_x = []
     for i in trange(num_cycles, disable=disable_tqdm):
-        x_ad, x_fwd, x_rev = rad_ad_cycle(x_ad, model, num_steps, normalized_beta_schedule)
-        seq_x.append(x_ad)
+        x, x_fwd, x_rev = neural_fwd_rev_cycle(x, model, num_steps, normalized_beta_schedule)
+        seq_x.append(x)
         seq_fwd_x.append(x_fwd)
         seq_rev_x.append(x_rev)
     seq_x = torch.stack(seq_x).detach().numpy().reshape(num_cycles, -1)
@@ -307,12 +303,12 @@ def sequential_prior_sampler(model, init_x, num_cycles, num_steps=100, disable_t
 # ------------------------------- line manifold ------------------------------ #
 def generate_sequential_samples_line(ground_truth_manifold, model_line, num_steps, num_cycles, alphas, betas, one_minus_alphas_prod_sqrt):
     manifold_initial_point = ground_truth_manifold[np.random.randint(ground_truth_manifold.shape[0])].reshape(1, -1)
-    xf_ad = rad_ad_cycle(manifold_initial_point, model_line, num_steps, alphas, betas, one_minus_alphas_prod_sqrt)
+    xf_ad = neural_fwd_rev_cycle(manifold_initial_point, model_line, num_steps, alphas, betas, one_minus_alphas_prod_sqrt)
     xfs_line = []
     # for i in range(num_iters-1):
     # for i in trange(num_cycles-1, desc='sequential sampling', unit='cycles'):
     for i in range(num_cycles):
-        xf_ad = rad_ad_cycle(xf_ad, model_line, num_steps, alphas, betas, one_minus_alphas_prod_sqrt)
+        xf_ad = neural_fwd_rev_cycle(xf_ad, model_line, num_steps, alphas, betas, one_minus_alphas_prod_sqrt)
         xfs_line.append(xf_ad)
     return torch.stack(xfs_line)
 

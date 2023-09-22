@@ -268,8 +268,6 @@ def posterior_sample_loop_occlusion(prior_sampler, M, sigma, s, shape, n_steps=1
     Mm = torch.from_numpy(Mm).float()
     Mm = Mm.to(device)
 
-    sigma = sigma.to(device)
-
     step = n_steps // 10
     for t in reversed(range(n_steps)):
         if t % step == 0 and status_bar:
@@ -316,7 +314,7 @@ def sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alph
     return cur_z, z_forward, z_reverse
 
 # ------------- sequential sampling of the posterior distribution ------------ #
-def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_steps=100, burn=True, normalized_beta_schedule=False, eval_at_mean=False, device='cpu', status_bar=False):
+def sequential_posterior_sampler(prior_sampler, z, M, likelihood_sigma, s, num_cycles, n_steps=100, burn=True, normalized_beta_schedule=False, eval_at_mean=False, device='cpu', status_bar=False):
     '''
     for a given continuous likelihood, generate samples to/from the posterior distribution sequentially (rather than iid). 
     '''
@@ -334,7 +332,7 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     
     # burn the first sample
     if burn:
-        cur_z = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)[0]
+        cur_z = sequential_posterior_cycle(cur_z, prior_sampler, Mm, likelihood_sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)[0]
     else: 
         print('not burning')
         cur_z = cur_z
@@ -345,7 +343,7 @@ def sequential_posterior_sampler(prior_sampler, z, M, sigma, s, num_cycles, n_st
     for j in range(num_cycles):
         if j % step == 0 and status_bar:
             print(f'cycle {j}/{num_cycles}', flush=True)
-        cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)
+        cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, likelihood_sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)
         z_seq.append(cur_z)
         z_rev_seq.append(z_reverse)
     z_seq = torch.stack(z_seq).detach().cpu().numpy().reshape(num_cycles, -1, 2)
@@ -455,7 +453,7 @@ def perform_top_down_inference(diffuser, classifier, num_steps, label=2, s=0.3, 
 # ---------------------------------------------------------------------------- #
 #                    both top-down and bottom-up likelihoods                   #
 # ---------------------------------------------------------------------------- #
-def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, shape, t, x, prev_mean, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule=False):
+def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, shape, t, x, prev_mean, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule=False, eval_at_mean=False, verbose=False):
     '''generate samples from the posterior or prior for a given data point x
     '''
     # ------------------------------ diffusion model ----------------------------- #
@@ -476,16 +474,16 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
     
     # -------------------------------- likelihood -------------------------------- #
     # bottom-up (continuous) likelihood
-    likelihood_score = compute_occlusion_score(x, Mm, sigma)
+    likelihood_score = compute_occlusion_score(x, Mm, sigma, device)
     
-    # top-down likelihood (Classifier)
-    if prev_mean == None:
-        # print('yellow')
-        prev_mean = mean
-    # else: 
-    #     if t > 97 or t<1:
-            # print('not yellow')
-    classifier_score = compute_classifier_score(classifier, prev_mean, label, t)
+    if eval_at_mean:
+        # top-down likelihood (Classifier)
+        if prev_mean == None:
+            prev_mean = mean
+        classifier_score = compute_classifier_score(classifier, prev_mean, label, t)
+    else:
+        # top-down likelihood (Classifier)
+        classifier_score = compute_classifier_score(classifier, x, label, t)
     
     # Generate z
     z = torch.randn_like(x, device=device)
@@ -493,28 +491,28 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
     # Fixed sigma
     beta_t = extract(betas, t, x).sqrt()
     
-    if mode == 'top-down':
-        if t>98:
+    if mode == 'top-down' or mode == 'td':
+        if t>98 and verbose:
             print('top-down mode')
         posterior_mean = mean + s_td * beta_t * classifier_score
-    if mode == 'bottom-up':
-        if t>98:
+    if mode == 'bottom-up' or mode == 'bu':
+        if t>98 and verbose:
             print('bottom-up mode')
         posterior_mean = mean + s_bu * beta_t * likelihood_score
     if mode == 'both':
-        if t>98:
+        if t>98 and verbose:
             print('both mode')
         # Posterior mean: \mu + \beta_t * \nabla_x log p(y | x) + \beta_t * \nabla_x log p(MMx |x)
         posterior_mean = mean + s_td * beta_t * classifier_score + s_bu * beta_t * likelihood_score
     if mode == 'neither' or mode == 'prior-only': 
-        if t>98:
+        if t>98 and verbose:
             print('prior-only mode')
         posterior_mean = mean
     
     sample = posterior_mean + beta_t * z
     return (sample, mean)
 
-def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma, s_bu, s_td, n_steps, sample_size, device='cpu', normalized_beta_schedule=False):
+def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma, s_bu, s_td, n_steps, sample_size, device='cpu', normalized_beta_schedule=False, eval_at_mean=False):
     '''generate samples from the posterior or prior distribution of the diffusion model
     '''
     betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
@@ -530,14 +528,86 @@ def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma,
     prev_mean = None
     
     for t in reversed(range(n_steps)):
-        x_t, mean = variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, shape, t, x_t, prev_mean, n_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule)
+        x_t, mean = variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, shape, t, x_t, prev_mean, n_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule, eval_at_mean)
         prev_mean = mean
         x_seq.append(x_t)
     x_seq = torch.stack(x_seq).detach()
     
     return x_seq, label
 
-def compute_joint_posterior_score_flow_field(prior_sampler, classifier, Mm, lim=1.5, num_vectors_per_dim=15, t=0, label=0, s_bu=0.3, s_td=0.3, vector_rescale_factor=0.7,):
+def variable_neural_inference_single_cycle(x_fwd_i, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule=False, eval_at_mean=False, device='cpu'):
+    '''
+    undergoes one cycle of variable neural inference
+    diffuses the datapoints using the posterior neural forward process, and then anti-diffuses using the neural reverse process 
+    '''
+    mode, Mm, label, sigma, s_bu, s_td = likelihood_params
+    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(num_steps, device)
+    
+    if type(x_fwd_i) == np.ndarray:
+        x_fwd_i = torch.tensor(x_fwd_i, dtype=torch.float)
+    
+    prev_mean = None
+    
+    x_fwd_seq = [x_fwd_i]
+    x_t = x_fwd_i
+    for t in range(num_steps):
+        x_t, mean = variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, (1,2), t, x_t, prev_mean, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule, eval_at_mean)
+        prev_mean = mean
+        x_fwd_seq.append(x_t)
+    x_fwd_seq = torch.stack(x_fwd_seq).detach()
+    x_fwd_f = x_fwd_seq[-1]
+    
+    x_rev_i = x_fwd_f
+    x_rev_seq = [x_rev_i]
+    x_t = x_rev_i
+    for t in reversed(range(num_steps)):
+        x_t, mean = variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, (1,2), t, x_t, prev_mean, num_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule, eval_at_mean)
+        prev_mean = mean
+        x_rev_seq.append(x_t)
+    x_rev_seq = torch.stack(x_rev_seq).detach()
+    x_rev_f = x_rev_seq[-1]
+    
+    return x_rev_f, x_fwd_seq, x_rev_seq
+
+def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label, sigma, s_bu, s_td, num_steps, sample_size, device='cpu', normalized_beta_schedule=False, eval_at_mean=False, disable_tqdm=True):
+    '''generate samples from the posterior or prior distribution of the diffusion model using neural (i.e. sequential) sampling 
+    '''
+    sample_size = int(sample_size)
+    shape = (sample_size, 2)
+    
+    if type(x_init) == np.ndarray:
+        x_init = torch.tensor(x_init, dtype=torch.float)
+    
+    M = v / np.linalg.norm(v)
+    Mm = M @ M.T
+    Mm = torch.from_numpy(Mm).float()
+    
+    # move to device
+    prior_sampler = priors_sampler.to(device)
+    classifier = classifier.to(device)
+    x_init = x_init.to(device)
+    Mm = Mm.to(device)
+    
+    # burn the first sample
+    likelihood_params = mode, Mm, label, sigma, s_bu, s_td
+    x, x_fwd, x_rev = variable_neural_inference_single_cycle(x_init, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule, eval_at_mean, device)
+    
+    x_seq = []
+    x_fwd_seq = []
+    x_rev_seq = []
+    
+    for i in trange(sample_size, disable=disable_tqdm):
+        x, x_fwd, x_rev = variable_neural_inference_single_cycle(x, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule, eval_at_mean, device)
+        x_seq.append(x)
+        x_fwd_seq.append(x_fwd)
+        x_rev_seq.append(x_rev)
+    x_seq = torch.stack(x_seq).detach().numpy().reshape(sample_size, -1)
+    x_fwd_seq = torch.stack(x_fwd_seq).detach().numpy().reshape(sample_size, num_steps+1, -1)
+    x_rev_seq = torch.stack(x_rev_seq).detach().numpy().reshape(sample_size, num_steps+1, -1)
+    
+    return x_seq, x_fwd_seq, x_rev_seq, label
+
+def compute_joint_posterior_score_flow_field(prior_sampler, classifier, Mm, lim=1.5, num_vectors_per_dim=15, t=0, label=0, likelihood_sigma=0.5, s_bu=0.3, s_td=0.3, vector_rescale_factor=0.7, device='cpu'):
     '''
     compute the score flow field for a posterior distribution that is a combination of top-down and bottom-up likelihoods
     '''
@@ -558,7 +628,7 @@ def compute_joint_posterior_score_flow_field(prior_sampler, classifier, Mm, lim=
             
             classifier_score = compute_classifier_score(classifier, x, class_label=label, t=t)
             
-            sensory_score = compute_occlusion_score(x, Mm)
+            sensory_score = compute_occlusion_score(x, Mm, likelihood_sigma, device)
             
             posterior_score = -diffuser_score + s_td*classifier_score + s_bu*sensory_score
             
