@@ -1,0 +1,1 @@
+{"model_name": "unconditional-dendritic", "model_number": 66, "num_steps": 100, "forward_schedule": "sine", "num_hidden": [59, 59], "num_ambient_dims": 2, "num_epochs": "2e+06", "manifold_type": "swiss_roll", "manifold_noise_amount": 0.3, "dataset_size": "2e+03", "batch_size": 128, "learning_rate": "3e-04", "use_pretrained_model": false}

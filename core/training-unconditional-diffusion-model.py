@@ -1,11 +1,11 @@
 import submitit
-import os
+import os, sys
 import json
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-from tqdm import trange
+from tqdm import tqdm
 import time
 import dill
 
@@ -16,82 +16,63 @@ else:
     base_dir = os.path.dirname(project_root)
 
 
-def forward_process(num_steps, dataset, model_name, device):
-    betas = make_beta_schedule(schedule='sigmoid', n_timesteps=num_steps, start=1e-5, end=2e-2)
-    alphas = 1 - betas
-    alphas_prod = torch.cumprod(alphas, 0)
-    alphas_prod_p = torch.cat([torch.tensor([1]).float(), alphas_prod[:-1]], 0)
-    alphas_bar_sqrt = torch.sqrt(alphas_prod)
-    one_minus_alphas_prod_log = torch.log(1 - alphas_prod)
-    one_minus_alphas_prod_sqrt = torch.sqrt(1 - alphas_prod)
+def save_checkpoint(epoch, model_state_dict, optimizer_state_dict, loss, model_name, model_number):
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model_state_dict,
+        'optimizer_state_dict': optimizer_state_dict,
+        'loss': loss
+    }
+    save_path = os.path.join(base_dir, 'core/saved_weights', f'{model_name}_{model_number}', f'epoch={epoch}')
+    from pathlib import Path
+    Path(save_path).mkdir(parents=True, exist_ok=True)
+    torch.save(checkpoint, os.path.join(save_path, 'checkpoint.pt'))
 
-    def q_x(x_0, t, noise=None):
-        if noise is None:
-            noise = torch.randn_like(x_0)
-        alphas_t = extract(alphas_bar_sqrt, t, x_0)
-        alphas_1_m_t = extract(one_minus_alphas_prod_sqrt, t, x_0)
-        return (alphas_t * x_0 + alphas_1_m_t * noise)
-
-    # plot the diffusion process
-    fig, ax = plt.subplots(1, 10, figsize=(22, 3))
-    lims = [-3,3]
-    for i in range(10):
-        q_i = q_x(dataset, torch.tensor([i * 10]))
-        ax[i].scatter(q_i[:, 0], q_i[:, 1], color='white', edgecolor='peru', s=5)
-        # ax[i].set_axis_off()
-        ax[i].set(xlim=lims, ylim=lims)
-        ax[i].set_title('$q(\mathbf{x}_{'+str(i*10)+'})$')
-        ax[i].set_aspect('equal')
-    fig.tight_layout()
-    plot_savedir = 'plots/archive'
-    figname = f'forward-process-{model_name}.png'
-    plt.savefig(os.path.join(plot_savedir, figname))
-
-    # larger image of dataset q(x_0)
-    fig, ax = plt.subplots(1,1, figsize=(5,5))
-    lims = [-1.5,1.5]
-    q_i = q_x(dataset, torch.tensor([0]))
-    ax.scatter(q_i[:, 0], q_i[:, 1], color='white', edgecolor='peru', s=5)
-    ax.set(xlim=lims, ylim=lims)
-    ax.set_title('$q(\mathbf{x}_{'+str(0)+'})$')
-    ax.set_aspect('equal')
-    figname = f'q0-{model_name}.png'
-    plt.savefig(os.path.join(plot_savedir, figname))
-    return betas, alphas, alphas_prod, alphas_prod_p, alphas_bar_sqrt, one_minus_alphas_prod_log, one_minus_alphas_prod_sqrt
-
-
-def reverse_process(model_name, num_steps, num_hidden, num_dims, num_epochs, batch_size, lr, device, dataset, coefs, pretrained_model):    
+def reverse_process(model, 
+                    model_name, 
+                    model_number, 
+                    num_steps, 
+                    forward_schedule,
+                    num_hidden, 
+                    num_dims,
+                    num_epochs,
+                    batch_size,
+                    lr,
+                    device,
+                    dataset,
+                    pretrained_model):
+    
+    # beta-related parameters
+    from prior_utils import forward_process
+    from utils import noise_estimation_loss
+    
+    coefs = forward_process(num_steps, device, forward_schedule)
     betas, alphas, alphas_prod, alphas_prod_p, alphas_bar_sqrt, one_minus_alphas_prod_log, one_minus_alphas_prod_sqrt = coefs
     alphas_bar_sqrt = alphas_bar_sqrt.to(device)
     one_minus_alphas_prod_sqrt = one_minus_alphas_prod_sqrt.to(device)
+    
+    # training set
     dataset = dataset.to(device)
     
-    model = NoiseConditionalEstimatorConcat(num_hidden)
-    # model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_dims, num_out=num_dims, bias=True)
-    # model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_dims, num_out=num_dims, bias=False)
-    # model = UnbiasedNoiseConditionalEstimatorConcat4Layers(num_hidden)
-    # model = UnbiasedNoiseConditionalEstimatorConcat4Layers(num_hidden, num_in=3, num_out=3, bias=False)
-    # model = VariableDendriticCircuitSomaBias(hidden_cfg=num_hidden, num_in=num_dims, num_out=num_dims, bias=False)
-
-    
-    if pretrained_model['use_pretrained_model_weights'] == True:
+    # define model
+    if pretrained_model['use_pretrained_model_weights']:
         from utils import load_model_weights
         pretrained_model_name = pretrained_model['model_name']
         pretrained_model_num = pretrained_model['model_num']
+        print(f'taking weights from pretrained model {pretrained_model_name}_{pretrained_model_num}!')
         model = load_model_weights(model, pretrained_model_name, pretrained_model_num, device)
-    
     model.to(device)
 
-    # lr = 1e-3
+    # training parameteres
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    # batch_size = 256
 
-    tb = SummaryWriter(f'runs/{model_name}')
-
+    run_dir = os.path.join(base_dir, 'demos/runs', f'{model_name}_{model_number}')
+    tb = SummaryWriter(run_dir)
     start_time = time.time()
     
+    # start training
     model.train()
-    for t in trange(num_epochs, desc='Training model', unit='epochs'):
+    for t in tqdm(range(int(num_epochs)), total=int(num_epochs), desc='Training model', unit='epochs', miniters=int(num_epochs)/1000, maxinterval=float("inf")):
         permutation = torch.randperm(dataset.size()[0], device=device)
     
         for i in range(0, dataset.size()[0], batch_size):
@@ -100,23 +81,20 @@ def reverse_process(model_name, num_steps, num_hidden, num_dims, num_epochs, bat
             batch_x = dataset[indices]
             
             # compute the loss
-            loss = noise_estimation_loss(model, batch_x, num_steps, alphas_bar_sqrt, one_minus_alphas_prod_sqrt, device, has_class_label=False)
+            loss = noise_estimation_loss(model, batch_x, num_steps, alphas_bar_sqrt, one_minus_alphas_prod_sqrt, device, norm='l2', has_class_label=False)
             # zero the gradients
             optimizer.zero_grad()
             # backward pass: compute the gradient of the loss wrt the parameters
             loss.backward()
             # call the step function to update the parameters
             optimizer.step()
+            
+        if t % int(1e4) == 0:
+            save_checkpoint(t, model.state_dict(), optimizer.state_dict(), loss.item(), model_name, model_number)
         
         # write to tensorboard
         tb.add_scalar('Loss', loss.item(), t)
-
-        # print loss
-        if (t % 1000 == 0):
-            print('t', t)
-            print('loss', loss.item())
     tb.flush()
-
 
     end_time = time.time()
     duration = end_time - start_time
@@ -131,165 +109,143 @@ def save_model(model, model_name):
     print('model saved!')
     
 
-def train_model(model_name, num_steps, num_hidden, num_samples, epochs, batch_size, lr, manifold_type, manifold_offsets, num_ambient_dims, manifold_rotation_angle, pretrained_model):
+def train_model(model_name, 
+                model_number,
+                num_steps, 
+                forward_schedule,
+                num_hidden, 
+                dataset_size, 
+                epochs, 
+                batch_size, 
+                lr, 
+                manifold_type, 
+                num_ambient_dims, 
+                pretrained_model,
+                manifold_offsets=[], 
+                manifold_rotation_angle=0, 
+                ):
+    
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}', flush=True)
-
-    from plot import *
-    from utils import *
-    from models import NoiseConditionalEstimatorConcat, UnbiasedNoiseConditionalEstimatorConcat4Layers
-    from models import  VariableDendriticCircuit, VariableDendriticCircuitSomaBias
-    from dataset_utils import load_trimodal_data, load_unimodal_data, load_unimodal_data_3d, load_unimodal_data_nd
+    sys.path.append(os.path.join(base_dir, 'core'))
+    sys.path.append(os.path.join(base_dir, 'core/utils'))
+    
+    from utils import save_model_weights
+    from models import NoiseConditionalEstimatorConcat, VariableDendriticCircuit
+    from dataset_utils import load_trimodal_data, load_unimodal_data, load_unimodal_data_3d, load_unimodal_data_nd, generate_2d_swiss_roll
 
     # ------------------------------ define dataset ------------------------------ #
-    dataset = load_trimodal_data(num_samples, manifold_offsets, train_test_split=False, add_class_label=False, plot=False, noise=0)
-    
+    # dataset = load_trimodal_data(num_samples, manifold_offsets, train_test_split=False, add_class_label=False, plot=False, noise=0)
     # dataset = load_unimodal_data(num_samples, manifold_type=manifold_type, offset=manifold_offsets, train_test_split=False, add_class_label=False)
     # dataset = make_nd_dataset(num_samples, manifold_type, n_dims=num_ambient_dims, theta=manifold_rotation_angle)
     # dataset = load_unimodal_data_nd(num_samples, manifold_type, dim_amb=num_ambient_dims, train_test_split=False)
-    # dataset = load_unimodal_data_nd(num_samples, manifold_type=manifold_type, dim_amb=num_ambient_dims, rotation_angle=manifold_rotation_angle)
+    dataset = generate_2d_swiss_roll(dataset_size, rescaled=True, return_as_tensor=True)[1]
 
-    # ------------------------- forward diffusion process ------------------------ #
-    coefs = forward_process(num_steps, dataset, model_name, device)
-
+    # -------------------------------- load model -------------------------------- #
+    model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
+    
     # -------------------- TRAINING - reverse diffusion process ------------------ #
-    model = reverse_process(model_name, num_steps, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, coefs, pretrained_model)
-    save_model(model, model_name)
-
-
+    model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, pretrained_model)
+    
+    save_model_weights(model, model_name, model_number)
 
 def main():
     print('we are running!')
 
-    # --------------------------- set global parameters -------------------------- #
-    # model_name = f'unbiased-unconditional-4layers'  # `unconditional-concat` or `unconditional-dendritic` or `unbiased-unconditional-3layers` or `unbiased-unconditional-4layers`
-    # model_name = f'unconditional-dendritic-3d-manifold'  # `unconditional-concat` or `unconditional-dendritic` or `unbiased-unconditional-3layers` or `unbiased-unconditional-4layers`
-    model_name = f'unconditional-concat'  # `unconditional-concat` or `unconditional-dendritic` or `unbiased-unconditional-3layers` or `unbiased-unconditional-4layers`
-    model_number = 15
+    # -------------------------- set model parameters -------------------------- #
+    model_name = 'unconditional-dendritic'
+    model_number = 66
     num_steps = 100
-    # hidden_cfg = {'3Layer': [25, 25], '4Layer': [64, 25, 10]} 
-    
-    # list of ints for the unconditional-dendritic model
-    # num_hidden = [64,25,10]  # v1
-    # num_hidden = [128, 64]  # v2
-    # num_hidden = [128, 64, 16]  # v3
-    # num_hidden = [64, 32, 16, 8]  # v4
-    # num_hidden = [64, 25, 10]  # v6, v8
-    # num_hidden = [25, 25, 25]  # v9
-    # num_hidden = [50, 50]  # v10
-    # num_hidden = [64, 10]  # v11
-    # num_hidden = [128, 5]  # v12
-    # num_hidden = [128, 20]  # v13
-    # num_hidden = [128, 32, 16]  # v14
-    # num_hidden = [5, 5, 5, 5, 5, 5] # with relu again
-    # num_hidden = [4, 4, 4, 4, 3, 3, 2] # with relu again
-    # num_hidden = [2, 2, 2, 2, 2, 2, 2] 
-    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-    
+    forward_schedule = 'sine'
+    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]
     # num_hidden = [3, 3, 3, 3, 3, 3, 4]
-    
-    # integer for the unconditional-concat model
-    num_hidden = 256
-
-    # num_samples = int(1e3)
-    num_samples = int(4e3)  # for the unconditional-concat model
-    # num_epochs = int(6000 * int(1e4)/num_samples)  # epochs scales inversely with num of samples
-    # num_epochs = int(5e4)  # epochs scales inversely with num of samples
-    # num_epochs = int(2e5)  # this is for the unconditional-concat model, doesn't need more than this
-    num_epochs = int(2e4)  # this is for the unconditional-concat model, doesn't need more than this
+    # num_hidden = [8, 8, 7, 7]
+    num_hidden = [59, 59]
+    num_ambient_dims = 2
+    num_epochs = 15e5
+    manifold_type = 'swiss_roll'
+    manifold_noise_amount = 0.3
+    dataset_size = int(2e3)
     batch_size = 128
     learning_rate = 3e-4
-    # manifold_type = 'line'  # swiss_roll_3d
-    manifold_type = 'trimodal'  # swiss_roll_3d
-    # manifold_offsets = [0, 0]
-    # manifold_offsets = [[0,0], [4,0], [2,4]]  # original offset. manifolds are separated
-    # manifold_offsets = [[0,0], [1,0], [1,1]]  # manifolds lie on top of each other
-    manifold_offsets = [[0.5,0.5], [0,1.5], [2,1]]
-    num_manifold_dims = 1
-    num_ambient_dims = 2
-    manifold_rotation_angle = np.pi/6
-    
-    # load the weights of a previously trained model
     pretrained_model = {
-        'use_pretrained_model_weights': False, 
-        'model_name': 'unconditional-concat', 
-        'model_num': 13
+        'use_pretrained_model_weights': False,
+        'model_name': 'unconditional-dendritic',
+        'model_num': 62
     }
-
-
-    # ----------------------------- other parameters ----------------------------- #
-    mode = 'train'
-    log_folder = os.path.join('cluster', 'logs/%j')
 
     # -------------------------- save model description -------------------------- #
     description = {
-        'model_number': model_number,
         'model_name': model_name,
+        'model_number': model_number,
         'num_steps': num_steps,
+        'forward_schedule': forward_schedule,
         'num_hidden': num_hidden,
-        # 'num_hidden': num_hidden,
-        # 'num_classes': num_classes,
-        'num_samples': f'{num_samples:.0e}',
-        'num_epochs': f'{num_epochs:.0e}',
-        # 'manifold_type': manifold_type,
-        'manifold_offsets': manifold_offsets,
-        # 'num_manifold_dims': num_manifold_dims,
         'num_ambient_dims': num_ambient_dims,
-        # 'manifold_rotation_angle': manifold_rotation_angle,
+        'num_epochs': f'{num_epochs:.0e}',
+        'manifold_type': manifold_type,
+        'manifold_noise_amount': manifold_noise_amount,
+        'dataset_size': f'{dataset_size:.0e}',
         'batch_size': batch_size,
         'learning_rate': f'{learning_rate:.0e}',
+        'use_pretrained_model': pretrained_model['use_pretrained_model_weights'],
     }
-    json_savedir = 'model_description'
-    model_name = f'{model_name}_{model_number}'
-    json_name = f'{model_name}.json'
+    if pretrained_model['use_pretrained_model_weights']:
+        description['pretrained_model_name'] = pretrained_model['model_name']
+        description['pretrained_model_num'] = pretrained_model['model_num']
+
+    json_savedir = os.path.join(base_dir, 'core/model_description')
+    model_name_and_number = f'{model_name}_{model_number}'
+    json_name = f'{model_name_and_number}.json'
     with open(os.path.join(json_savedir, json_name), 'w') as file:
         json.dump(description, file)
 
     # ------------------------- submitit cluster executor ------------------------ #
+    log_folder = os.path.join(base_dir, 'core/cluster/logs/training_models', '%j')
     ex = submitit.AutoExecutor(folder=log_folder)
-
     if ex.cluster == 'slurm':
         print('submitit executor will schedule jobs on slurm!')
     else:
         print(f'!!! Slurm executable `srun` not found. Will execute jobs on "{ex.cluster}"')
-
+    
     # slurm parameters
     ex.update_parameters(
-        slurm_job_name = model_name,
+        slurm_job_name = 'training',
         nodes = 1,
         slurm_partition = 'gpu',
-        slurm_gpus_per_task=1,
-        slurm_constraint='v100-32gb',
-        cpus_per_task=12,
-        mem_gb=32,
-        timeout_min=120,
+        slurm_constraint = 'a100',
+        slurm_gpus_per_task = 1,
+        slurm_cpus_per_task = 16,
+        slurm_ntasks_per_node = 1,
+        mem_gb = 64,
+        timeout_min = 2000,
     )
 
     jobs = []
     with ex.batch():
-        if mode=='train':
-            job = ex.submit(train_model, 
-                            model_name, 
-                            num_steps, 
-                            num_hidden, 
-                            num_samples, 
-                            num_epochs, 
-                            batch_size, 
-                            learning_rate, 
-                            manifold_type,
-                            manifold_offsets,
-                            num_ambient_dims,
-                            manifold_rotation_angle,
-                            pretrained_model
-            )
+        job = ex.submit(train_model, 
+                        model_name, 
+                        model_number,
+                        num_steps, 
+                        forward_schedule,
+                        num_hidden, 
+                        dataset_size, 
+                        num_epochs, 
+                        batch_size, 
+                        learning_rate, 
+                        manifold_type,
+                        num_ambient_dims,
+                        pretrained_model,
+                        # manifold_offsets,
+                        # manifold_rotation_angle,
+        )
         jobs.append(job)
     print('all jobs submitted!')
 
     idx = 0
     print(f'Job {jobs[idx].job_id}')
     # idx += 1
-
 
 if __name__ == '__main__':
     main()

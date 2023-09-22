@@ -128,9 +128,8 @@ def main():
         slurm_job_name = 'gen_samples',
         nodes = 1,
         slurm_partition = 'ccn',
-        slurm_cpus_per_task = 1,
+        slurm_cpus_per_task = 4,
         slurm_ntasks_per_node = 1,
-        cpus_per_task = 4,
         mem_gb = 32,
         timeout_min = 300,
     )

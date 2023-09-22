@@ -121,7 +121,7 @@ def make_beta_schedule(schedule='linear', n_timesteps=100, start=1e-5, end=1e-2,
         betas = torch.linspace(-6, 6, n_timesteps, device=device)
         betas = torch.sigmoid(betas) * (end - start) + start
     elif schedule == 'sine':
-        linspace = torch.linspace(0, np.pi, n_timesteps)
+        linspace = torch.linspace(0, np.pi, n_timesteps, device=device)
         modulator = 1 - torch.cos(linspace)
         betas = (end - start)/2 * (modulator) + start
     return betas
