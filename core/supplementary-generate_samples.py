@@ -12,7 +12,7 @@ if project_root[-12:] == 'LyoSavin2023':
 else:
     base_dir = os.path.dirname(project_root)
     
-def generate_samples(sampling_method, distribution_type, num_runs, sample_size, run_idx, save_dir, manifold_type='unimodal', v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2):
+def generate_samples(save_dir, batch_idx, num_runs, run_idx, sampling_method, distribution_type, sample_size, manifold_type='unimodal', v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2):
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}', flush=True)
@@ -76,7 +76,7 @@ def generate_samples(sampling_method, distribution_type, num_runs, sample_size, 
             from prior_utils import sequential_prior_sampler
             _, x_fwd, x_rev = sequential_prior_sampler(model, manifold_initial_point, sample_size, num_steps, disable_tqdm=True, normalized_beta_schedule=normalized_beta_schedule)
             
-            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
+            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_fwd.zarr'), x_fwd)
@@ -88,20 +88,27 @@ def generate_samples(sampling_method, distribution_type, num_runs, sample_size, 
         
         if sampling_method == 'iid':
             from likelihood_utils import perform_variable_inference
-            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
+            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
             
-            x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
+            x_revs = []
+            for run_idx in trange(num_runs, desc='run number'):
+                x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean)
+                x_revs.append(x_rev)
+            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_x_revs.zarr'), x_revs)
             
         elif sampling_method == 'seq':
             from likelihood_utils import variable_neural_inference
-            _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=True)
-            
-            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
+            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_fwd.zarr'), x_fwd)
+            
+            x_fwds = []; x_revs = []
+            for run_idx in trange(num_runs, desc='run number'):
+                _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=True)
+                x_fwds.append(x_fwd)
+                x_revs.append(x_rev)
+            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_x_revs.zarr'), x_revs)
+            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_x_fwds.zarr'), x_fwds)
 
 def main():
     log_folder = os.path.join(base_dir, 'core/cluster/logs/generate_samples', '%j')
@@ -127,8 +134,9 @@ def main():
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
+    batch_size = 20
     sample_size = 50
-    num_runs = 1
+    num_runs = 200
     
     '''
     distribution_types = ['prior', 'posterior']
@@ -160,14 +168,15 @@ def main():
         for distribution_type in distribution_types:
             if distribution_type == 'prior':
                 for sampling_method in sampling_methods:
-                    for run_idx in range(num_runs):
+                    for batch_idx in range(batch_size):
                         job = ex.submit(generate_samples, 
+                                        save_dir,
+                                        batch_idx,
+                                        num_runs, 
+                                        run_idx, 
                                         sampling_method, 
                                         distribution_type, 
-                                        num_runs, 
                                         sample_size, 
-                                        run_idx, 
-                                        save_dir,
                                         )
                         jobs.append(job)
             elif distribution_type == 'posterior':
@@ -175,14 +184,15 @@ def main():
                     for manifold_type in manifold_types:
                         for eval_method in eval_methods:
                             for posterior_type in posterior_types:
-                                for run_idx in range(num_runs):
+                                for batch_idx in range(batch_size):
                                     job = ex.submit(generate_samples, 
+                                                    save_dir,
+                                                    batch_idx,
+                                                    num_runs, 
+                                                    run_idx, 
                                                     sampling_method, 
                                                     distribution_type, 
-                                                    num_runs, 
                                                     sample_size, 
-                                                    run_idx, 
-                                                    save_dir,
                                                     manifold_type=manifold_type, 
                                                     eval_method=eval_method, 
                                                     posterior_type=posterior_type
