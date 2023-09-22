@@ -1,8 +1,0 @@
-submitit INFO (2023-09-17 03:24:18,396) - Starting with JobEnvironment(job_id=2677745, hostname=workergpu118, local_rank=0(1), node=0(1), global_rank=0(1))
-submitit INFO (2023-09-17 03:24:18,396) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/2677745/2677745_submitted.pkl
-Using device: cuda
-model loaded!
-so far, this process took 0.00 minutes, which is 0.00 hours.
-run number: 1/200
-submitit WARNING (2023-09-17 03:25:32,038) - Bypassing signal SIGCONT
-submitit WARNING (2023-09-17 03:25:32,060) - Bypassing signal SIGTERM

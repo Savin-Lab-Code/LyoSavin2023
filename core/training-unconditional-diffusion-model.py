@@ -1,19 +1,20 @@
 import submitit
 import os
 import json
+import numpy as np
 import torch
-from plot import *
-from utils import *
-from models import NoiseConditionalEstimatorConcat, UnbiasedNoiseConditionalEstimatorConcat4Layers
-from models import  VariableDendriticCircuit, VariableDendriticCircuitSomaBias
+from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-from utils import *
 from tqdm import trange
 import time
 import dill
-from torch.utils.tensorboard import SummaryWriter
-import numpy as np
-from dataset_utils import load_trimodal_data, load_unimodal_data, load_unimodal_data_3d, load_unimodal_data_nd
+
+project_root = os.path.abspath("")  # alternative
+if project_root[-12:] == 'LyoSavin2023':
+    base_dir = project_root
+else:
+    base_dir = os.path.dirname(project_root)
+
 
 def forward_process(num_steps, dataset, model_name, device):
     betas = make_beta_schedule(schedule='sigmoid', n_timesteps=num_steps, start=1e-5, end=2e-2)
@@ -59,7 +60,7 @@ def forward_process(num_steps, dataset, model_name, device):
     return betas, alphas, alphas_prod, alphas_prod_p, alphas_bar_sqrt, one_minus_alphas_prod_log, one_minus_alphas_prod_sqrt
 
 
-def reverse_process(model_name, num_steps, num_hidden, num_dims, num_epochs, batch_size, lr, device, dataset, coefs, pretrained_model):
+def reverse_process(model_name, num_steps, num_hidden, num_dims, num_epochs, batch_size, lr, device, dataset, coefs, pretrained_model):    
     betas, alphas, alphas_prod, alphas_prod_p, alphas_bar_sqrt, one_minus_alphas_prod_log, one_minus_alphas_prod_sqrt = coefs
     alphas_bar_sqrt = alphas_bar_sqrt.to(device)
     one_minus_alphas_prod_sqrt = one_minus_alphas_prod_sqrt.to(device)
@@ -129,12 +130,17 @@ def save_model(model, model_name):
     torch.save(model.state_dict(), os.path.join(savepath, model_name))
     print('model saved!')
     
-    
 
 def train_model(model_name, num_steps, num_hidden, num_samples, epochs, batch_size, lr, manifold_type, manifold_offsets, num_ambient_dims, manifold_rotation_angle, pretrained_model):
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
+    print(f'Using device: {device}', flush=True)
+
+    from plot import *
+    from utils import *
+    from models import NoiseConditionalEstimatorConcat, UnbiasedNoiseConditionalEstimatorConcat4Layers
+    from models import  VariableDendriticCircuit, VariableDendriticCircuitSomaBias
+    from dataset_utils import load_trimodal_data, load_unimodal_data, load_unimodal_data_3d, load_unimodal_data_nd
 
     # ------------------------------ define dataset ------------------------------ #
     dataset = load_trimodal_data(num_samples, manifold_offsets, train_test_split=False, add_class_label=False, plot=False, noise=0)

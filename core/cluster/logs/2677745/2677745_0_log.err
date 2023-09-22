@@ -1,5 +1,0 @@
-srun: Job step aborted: Waiting up to 62 seconds for job step to finish.
-submitit WARNING (2023-09-17 03:25:32,038) - Bypassing signal SIGCONT
-slurmstepd: error: *** JOB 2677745 ON workergpu118 CANCELLED AT 2023-09-17T03:25:32 ***
-slurmstepd: error: *** STEP 2677745.0 ON workergpu118 CANCELLED AT 2023-09-17T03:25:32 ***
-submitit WARNING (2023-09-17 03:25:32,060) - Bypassing signal SIGTERM

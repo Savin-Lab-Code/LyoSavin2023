@@ -12,7 +12,7 @@ if project_root[-12:] == 'LyoSavin2023':
 else:
     base_dir = os.path.dirname(project_root)
     
-def generate_samples(save_dir, batch_idx, num_runs, run_idx, sampling_method, distribution_type, sample_size, manifold_type='unimodal', v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2):
+def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distribution_type, sample_size, manifold_type='unimodal', v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2):
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}', flush=True)
@@ -70,7 +70,7 @@ def generate_samples(save_dir, batch_idx, num_runs, run_idx, sampling_method, di
             
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}.zarr'), x_rev)
+            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_rev)
             
         elif sampling_method == 'seq':
             from prior_utils import sequential_prior_sampler
@@ -78,8 +78,8 @@ def generate_samples(save_dir, batch_idx, num_runs, run_idx, sampling_method, di
             
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_fwd.zarr'), x_fwd)
+            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_rev)
+            zarr.save(os.path.join(save_dir, f'x_fwds.zarr'), x_fwd)
         
         
     # ----------------------------- generate posterior samples ----------------------------- #
@@ -95,7 +95,8 @@ def generate_samples(save_dir, batch_idx, num_runs, run_idx, sampling_method, di
             for run_idx in trange(num_runs, desc='run number'):
                 x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean)
                 x_revs.append(x_rev)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_x_revs.zarr'), x_revs)
+            x_revs = np.stack(x_revs, axis=0)
+            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_revs)
             
         elif sampling_method == 'seq':
             from likelihood_utils import variable_neural_inference
@@ -107,8 +108,10 @@ def generate_samples(save_dir, batch_idx, num_runs, run_idx, sampling_method, di
                 _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=True)
                 x_fwds.append(x_fwd)
                 x_revs.append(x_rev)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_x_revs.zarr'), x_revs)
-            zarr.save(os.path.join(save_dir, f'{int(run_idx)}_x_fwds.zarr'), x_fwds)
+            x_fwds = np.stack(x_fwds, axis=0)
+            x_revs = np.stack(x_revs, axis=0)
+            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_revs)
+            zarr.save(os.path.join(save_dir, f'x_fwds.zarr'), x_fwds)
 
 def main():
     log_folder = os.path.join(base_dir, 'core/cluster/logs/generate_samples', '%j')
@@ -134,9 +137,9 @@ def main():
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
-    batch_size = 20
+    batch_size = 20 # 20
     sample_size = 50
-    num_runs = 200
+    num_runs = 200 # 200
     
     '''
     distribution_types = ['prior', 'posterior']
@@ -173,7 +176,6 @@ def main():
                                         save_dir,
                                         batch_idx,
                                         num_runs, 
-                                        run_idx, 
                                         sampling_method, 
                                         distribution_type, 
                                         sample_size, 
@@ -189,7 +191,6 @@ def main():
                                                     save_dir,
                                                     batch_idx,
                                                     num_runs, 
-                                                    run_idx, 
                                                     sampling_method, 
                                                     distribution_type, 
                                                     sample_size, 

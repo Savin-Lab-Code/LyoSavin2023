@@ -1,8 +1,0 @@
-submitit INFO (2023-09-16 13:43:35,557) - Starting with JobEnvironment(job_id=2677026_0, hostname=worker3164, local_rank=0(1), node=0(1), global_rank=0(1))
-submitit INFO (2023-09-16 13:43:35,557) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/2677026_0/2677026_0_submitted.pkl
-model loaded!
-submitit WARNING (2023-09-16 23:41:38,065) - Bypassing signal SIGCONT
-submitit INFO (2023-09-16 23:41:38,066) - Job has timed out. Ran 598 minutes out of requested 600 minutes.
-submitit WARNING (2023-09-16 23:41:38,066) - Caught signal SIGUSR2 on worker3164: this job is timed-out.
-submitit INFO (2023-09-16 23:41:38,066) - Job not requeued because: timed-out and not checkpointable.
-submitit ERROR (2023-09-16 23:41:38,232) - Submitted job triggered an exception
