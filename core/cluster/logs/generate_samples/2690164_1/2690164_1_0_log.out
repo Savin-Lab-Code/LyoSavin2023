@@ -1,0 +1,6 @@
+submitit INFO (2023-09-21 22:12:39,479) - Starting with JobEnvironment(job_id=2690164_1, hostname=worker3071, local_rank=0(1), node=0(1), global_rank=0(1))
+submitit INFO (2023-09-21 22:12:39,479) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/generate_samples/2690164_1/2690164_1_submitted.pkl
+Using device: cpu
+model loaded!
+model loaded!
+submitit ERROR (2023-09-21 22:13:37,748) - Submitted job triggered an exception

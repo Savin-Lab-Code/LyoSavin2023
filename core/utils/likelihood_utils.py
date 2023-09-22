@@ -531,7 +531,7 @@ def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma,
         x_t, mean = variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma, s_bu, s_td, shape, t, x_t, prev_mean, n_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule, eval_at_mean)
         prev_mean = mean
         x_seq.append(x_t)
-    x_seq = torch.stack(x_seq).detach()
+    x_seq = torch.stack(x_seq).detach().numpy()
     
     return x_seq, label
 
@@ -583,7 +583,7 @@ def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label,
     Mm = torch.from_numpy(Mm).float()
     
     # move to device
-    prior_sampler = priors_sampler.to(device)
+    prior_sampler = prior_sampler.to(device)
     classifier = classifier.to(device)
     x_init = x_init.to(device)
     Mm = Mm.to(device)

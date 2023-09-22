@@ -69,7 +69,7 @@ def generate_samples(sampling_method, distribution_type, num_runs, sample_size, 
             x_rev = p_sample_loop(model, (sample_size, ambient_dims), num_steps, device, normalized_beta_schedule=normalized_beta_schedule)
             
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
-            Path(save_dir).mkdir(parents=False, exist_ok=True)
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}.zarr'), x_rev)
             
         elif sampling_method == 'seq':
@@ -77,7 +77,7 @@ def generate_samples(sampling_method, distribution_type, num_runs, sample_size, 
             _, x_fwd, x_rev = sequential_prior_sampler(model, manifold_initial_point, sample_size, num_steps, disable_tqdm=True, normalized_beta_schedule=normalized_beta_schedule)
             
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
-            Path(save_dir).mkdir(parents=False, exist_ok=True)
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_fwd.zarr'), x_fwd)
         
@@ -88,10 +88,10 @@ def generate_samples(sampling_method, distribution_type, num_runs, sample_size, 
         
         if sampling_method == 'iid':
             from likelihood_utils import perform_variable_inference
-            x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean)
+            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
             
-            save_dir = os.path.join(save_dir, f'{distribution_type}-{posterior_type}-{sampling_method}-{manifold_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
-            Path(save_dir).mkdir(parents=False, exist_ok=True)
+            x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
             
         elif sampling_method == 'seq':
@@ -99,12 +99,12 @@ def generate_samples(sampling_method, distribution_type, num_runs, sample_size, 
             _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=True)
             
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
-            Path(save_dir).mkdir(parents=False, exist_ok=True)
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
             zarr.save(os.path.join(save_dir, f'{int(run_idx)}_fwd.zarr'), x_fwd)
 
 def main():
-    log_folder = os.path.join(base_dir, 'core/cluster/logs', '%j')
+    log_folder = os.path.join(base_dir, 'core/cluster/logs/generate_samples', '%j')
     # device = 'cpu'
 
     # ------------------------- submitit cluster executor ------------------------ #
@@ -128,7 +128,7 @@ def main():
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
     sample_size = 50
-    num_runs = 4000
+    num_runs = 1
     
     '''
     distribution_types = ['prior', 'posterior']

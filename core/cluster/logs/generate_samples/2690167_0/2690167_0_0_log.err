@@ -1,0 +1,37 @@
+submitit ERROR (2023-09-21 22:16:26,235) - Submitted job triggered an exception
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/_submit.py", line 11, in <module>
+    submitit_main()
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/submission.py", line 72, in submitit_main
+    process_job(args.folder)
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/submission.py", line 65, in process_job
+    raise error
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/submission.py", line 54, in process_job
+    result = delayed.result()
+             ^^^^^^^^^^^^^^^^
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/utils.py", line 133, in result
+    self._result = self.function(*self.args, **self.kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ceph/users/blyo1/projects/LyoSavin2023/core/supplementary-generate_samples.py", line 95, in generate_samples
+    zarr.save(os.path.join(save_dir, f'{int(run_idx)}_rev.zarr'), x_rev)
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/convenience.py", line 342, in save
+    save_array(store, args[0], zarr_version=zarr_version, path=path)
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/convenience.py", line 170, in save_array
+    _create_array(arr, store=_store, overwrite=True, zarr_version=zarr_version, path=path,
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/creation.py", line 385, in array
+    z = create(**kwargs)
+        ^^^^^^^^^^^^^^^^
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/creation.py", line 169, in create
+    init_array(store, shape=shape, chunks=chunks, dtype=dtype, compressor=compressor,
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/storage.py", line 426, in init_array
+    _init_array_metadata(store, shape=shape, chunks=chunks, dtype=dtype,
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/storage.py", line 496, in _init_array_metadata
+    dtype, object_codec = normalize_dtype(dtype, object_codec)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/zarr/util.py", line 189, in normalize_dtype
+    dtype = np.dtype(dtype)
+            ^^^^^^^^^^^^^^^
+TypeError: Cannot interpret 'torch.float32' as a data type
+srun: error: worker3040: task 0: Exited with exit code 1

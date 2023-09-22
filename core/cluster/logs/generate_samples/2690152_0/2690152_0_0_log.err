@@ -1,0 +1,22 @@
+submitit ERROR (2023-09-21 22:09:58,489) - Submitted job triggered an exception
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/_submit.py", line 11, in <module>
+    submitit_main()
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/submission.py", line 72, in submitit_main
+    process_job(args.folder)
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/submission.py", line 65, in process_job
+    raise error
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/submission.py", line 54, in process_job
+    result = delayed.result()
+             ^^^^^^^^^^^^^^^^
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/site-packages/submitit/core/utils.py", line 133, in result
+    self._result = self.function(*self.args, **self.kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ceph/users/blyo1/projects/LyoSavin2023/core/supplementary-generate_samples.py", line 94, in generate_samples
+    Path(save_dir).mkdir(parents=False, exist_ok=True)
+  File "/mnt/home/blyo1/ceph/envs/pyenv311/lib/python3.11/pathlib.py", line 1116, in mkdir
+    os.mkdir(self, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/ceph/users/blyo1/projects/LyoSavin2023/core/saved_arrays/samples/posterior-bu-iid-unimodal-xt/num_samples=5e+01-num_runs=1'
+srun: error: worker5179: task 0: Exited with exit code 1

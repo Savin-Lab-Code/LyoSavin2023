@@ -1,0 +1,6 @@
+submitit INFO (2023-09-21 22:23:05,487) - Starting with JobEnvironment(job_id=2690170_0, hostname=worker3040, local_rank=0(1), node=0(1), global_rank=0(1))
+submitit INFO (2023-09-21 22:23:05,487) - Loading pickle: /mnt/ceph/users/blyo1/projects/LyoSavin2023/core/cluster/logs/generate_samples/2690170_0/2690170_0_submitted.pkl
+Using device: cpu
+model loaded!
+model loaded!
+submitit INFO (2023-09-21 22:23:37,639) - Job completed successfully
