@@ -7,7 +7,6 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from tqdm import tqdm
 import time
-import dill
 
 project_root = os.path.abspath("")  # alternative
 if project_root[-12:] == 'LyoSavin2023':
@@ -136,14 +135,11 @@ def train_model(model_name,
     from dataset_utils import load_trimodal_data, load_unimodal_data, load_unimodal_data_3d, load_unimodal_data_nd, generate_2d_swiss_roll
 
     # ------------------------------ define dataset ------------------------------ #
-    # dataset = load_trimodal_data(num_samples, manifold_offsets, train_test_split=False, add_class_label=False, plot=False, noise=0)
-    # dataset = load_unimodal_data(num_samples, manifold_type=manifold_type, offset=manifold_offsets, train_test_split=False, add_class_label=False)
-    # dataset = make_nd_dataset(num_samples, manifold_type, n_dims=num_ambient_dims, theta=manifold_rotation_angle)
-    # dataset = load_unimodal_data_nd(num_samples, manifold_type, dim_amb=num_ambient_dims, train_test_split=False)
     dataset = generate_2d_swiss_roll(dataset_size, rescaled=True, return_as_tensor=True)[1]
 
     # -------------------------------- load model -------------------------------- #
     model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
+    # model = NoiseConditionalEstimatorConcat(num_hidden)
     
     # -------------------- TRAINING - reverse diffusion process ------------------ #
     model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, pretrained_model)
@@ -155,22 +151,25 @@ def main():
 
     # -------------------------- set model parameters -------------------------- #
     model_name = 'unconditional-dendritic'
-    model_number = 66
-    num_steps = 100
-    forward_schedule = 'sine'
+    model_number = 67
+    # model_name = 'unconditional-concat'
+    # model_number = 17
+    num_steps = 2000
+    forward_schedule = 'sigmoid'
     # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]
-    # num_hidden = [3, 3, 3, 3, 3, 3, 4]
+    num_hidden = [3, 3, 3, 3, 3, 3, 4]
     # num_hidden = [8, 8, 7, 7]
-    num_hidden = [59, 59]
+    # num_hidden = [59, 59]
+    # num_hidden = 128
     num_ambient_dims = 2
     num_epochs = 15e5
     manifold_type = 'swiss_roll'
-    manifold_noise_amount = 0.3
+    manifold_noise_amount = 0
     dataset_size = int(2e3)
     batch_size = 128
     learning_rate = 3e-4
     pretrained_model = {
-        'use_pretrained_model_weights': False,
+        'use_pretrained_model_weights': True,
         'model_name': 'unconditional-dendritic',
         'model_num': 62
     }
@@ -219,7 +218,7 @@ def main():
         slurm_cpus_per_task = 16,
         slurm_ntasks_per_node = 1,
         mem_gb = 64,
-        timeout_min = 2000,
+        timeout_min = 2000,  # 33 hours
     )
 
     jobs = []
