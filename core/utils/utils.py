@@ -275,7 +275,7 @@ def select_model(model_name, model_version_number, device='cpu', print_details=F
     # initialize model
     if model_name == 'unconditional-concat':
         model = NoiseConditionalEstimatorConcat(num_hidden)
-    elif model_name == 'unconditional-dendritic' or model_name == 'unconditional-dendritic-3d-manifold':
+    elif model_name[:23] == 'unconditional-dendritic' or model_name == 'unconditional-dendritic-3d-manifold':
         model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=dim_amb, num_out=dim_amb, bias=True)
     elif model_name == 'noisy-image-classifier-with-noise-info':
         model = NoisyImageClassifierWithTimeEmbedding(dim_amb, num_hidden, num_classes, num_steps)
