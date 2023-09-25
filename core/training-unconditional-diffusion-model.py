@@ -138,8 +138,8 @@ def train_model(model_name,
     dataset = generate_2d_swiss_roll(dataset_size, rescaled=True, return_as_tensor=True)[1]
 
     # -------------------------------- load model -------------------------------- #
-    model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
-    # model = NoiseConditionalEstimatorConcat(num_hidden)
+    # model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
+    model = NoiseConditionalEstimatorConcat(num_hidden)
     
     # -------------------- TRAINING - reverse diffusion process ------------------ #
     model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, pretrained_model)
@@ -150,17 +150,19 @@ def main():
     print('we are running!')
 
     # -------------------------- set model parameters -------------------------- #
-    model_name = 'unconditional-dendritic'
-    model_number = 67
-    # model_name = 'unconditional-concat'
-    # model_number = 17
-    num_steps = 2000
-    forward_schedule = 'sigmoid'
-    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]
-    num_hidden = [3, 3, 3, 3, 3, 3, 4]
-    # num_hidden = [8, 8, 7, 7]
-    # num_hidden = [59, 59]
-    # num_hidden = 128
+    # model_name = 'unconditional-dendritic-4-layers'
+    # model_number = 5
+    model_name = 'unconditional-concat'
+    model_number = 18
+    num_steps = 100
+    forward_schedule = 'sine'
+    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]  # 10 layers
+    # num_hidden = [3, 3, 3, 3, 3, 3, 4]  # 7 layers
+    # num_hidden = [4, 4, 4, 4, 4, 3]  # 6 layers
+    # num_hidden = [5, 5, 5, 5, 5]  # 5 layers
+    # num_hidden = [8, 8, 7, 7]  # 4 layers
+    # num_hidden = [59, 59]  # 2 layers
+    num_hidden = 128
     num_ambient_dims = 2
     num_epochs = 15e5
     manifold_type = 'swiss_roll'
@@ -169,7 +171,7 @@ def main():
     batch_size = 128
     learning_rate = 3e-4
     pretrained_model = {
-        'use_pretrained_model_weights': True,
+        'use_pretrained_model_weights': False,
         'model_name': 'unconditional-dendritic',
         'model_num': 62
     }
@@ -217,8 +219,8 @@ def main():
         slurm_gpus_per_task = 1,
         slurm_cpus_per_task = 16,
         slurm_ntasks_per_node = 1,
-        mem_gb = 64,
-        timeout_min = 2000,  # 33 hours
+        mem_gb = 128,
+        timeout_min = 2400,  # 40 hours
     )
 
     jobs = []

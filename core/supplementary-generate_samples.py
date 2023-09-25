@@ -23,7 +23,7 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
     # ------------------------------- select model ------------------------------- #
     from utils import select_model
     if manifold_type == 'unimodal':
-        prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic', 47)
+        prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic-4-layers', 1)
         normalized_beta_schedule = True
     if manifold_type == 'trimodal':
         prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic', 42)
@@ -130,15 +130,15 @@ def main():
         slurm_partition = 'ccn',
         slurm_cpus_per_task = 4,
         slurm_ntasks_per_node = 1,
-        mem_gb = 32,
-        timeout_min = 300,
+        mem_gb = 128,
+        timeout_min = 600,
     )
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
-    batch_size = 20 # 20
-    sample_size = 50
-    num_runs = 200 # 200
+    sample_size = 1e5
+    batch_size = 20  # the number of jobs 
+    num_runs = 1  # how many repeats of the data collection per job
     
     '''
     distribution_types = ['prior', 'posterior']
@@ -155,7 +155,7 @@ def main():
     
     # only for posterior distribution
     manifold_types = ['unimodal']
-    eval_methods = ['xt']
+    eval_methods = ['xt', 'mu']
     posterior_types = ['bu']
     
         
