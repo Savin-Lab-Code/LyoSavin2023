@@ -474,16 +474,23 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
     
     # -------------------------------- likelihood -------------------------------- #
     # bottom-up (continuous) likelihood
-    likelihood_score = compute_occlusion_score(x, Mm, sigma, device)
+    if mode=='bottom-up' or mode=='bu' or mode=='both':
+        if eval_at_mean:
+            # evaluating the likelihood score at the mean of the prior transition operator
+            likelihood_score = compute_occlusion_score(mean, Mm, sigma, device)
+        else:
+            # evaluating the likelihood score at the current sample
+            likelihood_score = compute_occlusion_score(x, Mm, sigma, device)
     
-    if eval_at_mean:
-        # top-down likelihood (Classifier)
-        if prev_mean == None:
-            prev_mean = mean
-        classifier_score = compute_classifier_score(classifier, prev_mean, label, t)
-    else:
-        # top-down likelihood (Classifier)
-        classifier_score = compute_classifier_score(classifier, x, label, t)
+    if mode=='top-down' or mode=='td' or mode=='both':
+        if eval_at_mean:
+            # top-down likelihood (Classifier)
+            if prev_mean == None:
+                prev_mean = mean
+            classifier_score = compute_classifier_score(classifier, mean, label, t)
+        else:
+            # top-down likelihood (Classifier)
+            classifier_score = compute_classifier_score(classifier, x, label, t)
     
     # Generate z
     z = torch.randn_like(x, device=device)
@@ -512,10 +519,10 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
     sample = posterior_mean + beta_t * z
     return (sample, mean)
 
-def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma, s_bu, s_td, n_steps, sample_size, device='cpu', normalized_beta_schedule=False, eval_at_mean=False):
+def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma, s_bu, s_td, n_steps, sample_size, device='cpu', normalized_beta_schedule=False, eval_at_mean=False, schedule='sigmoid'):
     '''generate samples from the posterior or prior distribution of the diffusion model
     '''
-    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
+    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device, schedule)
     sample_size = int(sample_size)
     shape = (sample_size, 2)
     
@@ -535,13 +542,13 @@ def perform_variable_inference(prior_sampler, classifier, v, mode, label, sigma,
     
     return x_seq, label
 
-def variable_neural_inference_single_cycle(x_fwd_i, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule=False, eval_at_mean=False, device='cpu'):
+def variable_neural_inference_single_cycle(x_fwd_i, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule=False, eval_at_mean=False, device='cpu', schedule='sigmoid'):
     '''
     undergoes one cycle of variable neural inference
     diffuses the datapoints using the posterior neural forward process, and then anti-diffuses using the neural reverse process 
     '''
     mode, Mm, label, sigma, s_bu, s_td = likelihood_params
-    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(num_steps, device)
+    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(num_steps, device, schedule)
     
     if type(x_fwd_i) == np.ndarray:
         x_fwd_i = torch.tensor(x_fwd_i, dtype=torch.float)
@@ -569,7 +576,7 @@ def variable_neural_inference_single_cycle(x_fwd_i, prior_sampler, classifier, n
     
     return x_rev_f, x_fwd_seq, x_rev_seq
 
-def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label, sigma, s_bu, s_td, num_steps, sample_size, device='cpu', normalized_beta_schedule=False, eval_at_mean=False, disable_tqdm=True):
+def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label, sigma, s_bu, s_td, num_steps, sample_size, device='cpu', normalized_beta_schedule=False, eval_at_mean=False, disable_tqdm=True, schedule='sigmoid'):
     '''generate samples from the posterior or prior distribution of the diffusion model using neural (i.e. sequential) sampling 
     '''
     sample_size = int(sample_size)
@@ -590,14 +597,14 @@ def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label,
     
     # burn the first sample
     likelihood_params = mode, Mm, label, sigma, s_bu, s_td
-    x, x_fwd, x_rev = variable_neural_inference_single_cycle(x_init, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule, eval_at_mean, device)
+    x, x_fwd, x_rev = variable_neural_inference_single_cycle(x_init, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule, eval_at_mean, device, schedule)
     
     x_seq = []
     x_fwd_seq = []
     x_rev_seq = []
     
     for i in trange(sample_size, disable=disable_tqdm):
-        x, x_fwd, x_rev = variable_neural_inference_single_cycle(x, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule, eval_at_mean, device)
+        x, x_fwd, x_rev = variable_neural_inference_single_cycle(x, prior_sampler, classifier, num_steps, likelihood_params, normalized_beta_schedule, eval_at_mean, device, schedule)
         x_seq.append(x)
         x_fwd_seq.append(x_fwd)
         x_rev_seq.append(x_rev)

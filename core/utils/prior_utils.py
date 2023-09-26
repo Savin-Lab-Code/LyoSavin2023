@@ -152,10 +152,10 @@ def p_sample(model, x, t, n_steps, alphas, betas, one_minus_alphas_prod_sqrt, de
     return sample
 
 @torch.no_grad()
-def p_sample_loop(model, shape, n_steps, device='cpu', init_x=None, normalized_beta_schedule=False):
+def p_sample_loop(model, shape, n_steps, device='cpu', init_x=None, normalized_beta_schedule=False, schedule='sigmoid'):
     '''takes a model and returns the sequence of x_t's during the reverse process
     '''
-    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
+    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device, schedule)
     
     if init_x == None:
         cur_x = torch.randn(shape, device=device)
@@ -230,11 +230,11 @@ def p_sample_rev(model, x, t, n_steps, alphas, betas, one_minus_alphas_prod_sqrt
     return sample, mean
 
 @torch.no_grad()
-def p_rev_loop(model, x_0, shape, n_steps, device, normalized_beta_schedule=False):
+def p_rev_loop(model, x_0, shape, n_steps, device, normalized_beta_schedule=False, schedule='sigmoid'):
     """
     for each initial datapoint, this function returns the datapoints corresponding to every step of the neural forward process
     """
-    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device)
+    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device, schedule)
     
     cur_x = x_0
     x_seq = [cur_x]
@@ -249,7 +249,7 @@ def p_rev_loop(model, x_0, shape, n_steps, device, normalized_beta_schedule=Fals
 
 
 # ------- alternating between the neural forward and reverse processes ------- #
-def neural_fwd_rev_cycle(x_fwd_i, model, num_steps, normalized_beta_schedule=False):
+def neural_fwd_rev_cycle(x_fwd_i, model, num_steps, normalized_beta_schedule=False, schedule='sigmoid'):
     '''
     undergoes one cycle of the oscillation.
     diffuses the datapoints using the neural forward process, and then anti-diffuses using the neural reverse process.
@@ -261,20 +261,20 @@ def neural_fwd_rev_cycle(x_fwd_i, model, num_steps, normalized_beta_schedule=Fal
         x_fwd_i = x_fwd_i
     
     # neural forward process
-    x_fwd_seq = p_rev_loop(model, x_fwd_i, x_fwd_i.shape, num_steps, device, normalized_beta_schedule)[0]
+    x_fwd_seq = p_rev_loop(model, x_fwd_i, x_fwd_i.shape, num_steps, device, normalized_beta_schedule, schedule)[0]
     x_fwd_seq = torch.stack(x_fwd_seq).detach().cpu()
     x_fwd_f = x_fwd_seq[-1, :, :]
     
     # neural reverse process
     x_rev_i = x_fwd_f
-    x_rev_seq = p_sample_loop(model, x_rev_i.shape, num_steps, device, x_rev_i, normalized_beta_schedule)
+    x_rev_seq = p_sample_loop(model, x_rev_i.shape, num_steps, device, x_rev_i, normalized_beta_schedule, schedule)
     x_rev_f = x_rev_seq[-1, :, :]
 
     # return the final datapoint after one cycle of the oscillation, and the sequences of datapoints during the forward and reverse processes
     return x_rev_f, x_fwd_seq, x_rev_seq
 
 
-def sequential_prior_sampler(model, init_x, num_cycles, num_steps=100, disable_tqdm=False, normalized_beta_schedule=False):
+def sequential_prior_sampler(model, init_x, num_cycles, num_steps=100, disable_tqdm=False, normalized_beta_schedule=False, schedule='sigmoid'):
     if type(init_x) == np.ndarray:
         init_x = torch.tensor(init_x, dtype=torch.float)
     else: 
@@ -282,13 +282,13 @@ def sequential_prior_sampler(model, init_x, num_cycles, num_steps=100, disable_t
 
     
     # burn the first sample
-    x, x_fwd, x_rev = neural_fwd_rev_cycle(init_x, model, num_steps, normalized_beta_schedule)
+    x, x_fwd, x_rev = neural_fwd_rev_cycle(init_x, model, num_steps, normalized_beta_schedule, schedule)
     
     seq_x = []
     seq_fwd_x = []
     seq_rev_x = []
     for i in trange(num_cycles, disable=disable_tqdm):
-        x, x_fwd, x_rev = neural_fwd_rev_cycle(x, model, num_steps, normalized_beta_schedule)
+        x, x_fwd, x_rev = neural_fwd_rev_cycle(x, model, num_steps, normalized_beta_schedule, schedule)
         seq_x.append(x)
         seq_fwd_x.append(x_fwd)
         seq_rev_x.append(x_rev)

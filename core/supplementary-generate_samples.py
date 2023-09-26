@@ -12,7 +12,7 @@ if project_root[-12:] == 'LyoSavin2023':
 else:
     base_dir = os.path.dirname(project_root)
     
-def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distribution_type, sample_size, manifold_type='unimodal', v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2):
+def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distribution_type, sample_size, manifold_type='unimodal', model_name=None, model_num=None, v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2):
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}', flush=True)
@@ -22,13 +22,27 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
     
     # ------------------------------- select model ------------------------------- #
     from utils import select_model
-    if manifold_type == 'unimodal':
-        prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic-4-layers', 1)
-        normalized_beta_schedule = True
-    if manifold_type == 'trimodal':
-        prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic', 42)
-        normalized_beta_schedule = True
+    if model_name==None or model_num==None:
+        print('no model name or num provided, using default model')
+        if manifold_type == 'unimodal':
+            prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic', 47)
+            normalized_beta_schedule = True
+            schedule='sigmoid'
+            save_dir = os.path.join(save_dir, 'unconditional-dendritic-47')
+        if manifold_type == 'trimodal':
+            prior_sampler, num_steps, ambient_dims = select_model('unconditional-dendritic', 42)
+            normalized_beta_schedule = True
+            schedule='sigmoid'
+            save_dir = os.path.join(save_dir, 'unconditional-dendritic_42')
+    else:
+        print(f'using specific model: {model_name}_{model_num}')
+        prior_sampler, num_steps, ambient_dims = select_model(model_name, model_num)
+        normalized_beta_schedule = False
+        schedule='sine'
+        save_dir = os.path.join(save_dir, f'{model_name}_{model_num}')
+
     prior_sampler.to(device)
+    prior_sampler.eval()
     
     # ----------------------- define continuous likelihood ----------------------- #
     if distribution_type == 'posterior':
@@ -46,11 +60,13 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
     # -------- initial datapoint on the manifold (for sequential sampling) ------- #
     if sampling_method == 'seq':
         if manifold_type == 'unimodal':
+            print('unimodal manifold.')
             from dataset_utils import generate_2d_swiss_roll
             dataset = generate_2d_swiss_roll(sample_size, rescaled=True, return_as_tensor=True)[1]
             manifold_initial_point = dataset[np.random.randint(sample_size)].reshape(1, -1)
             manifold_initial_point = manifold_initial_point.to(device)
         if manifold_type == 'trimodal':
+            print('trimodal manifold.')
             from dataset_utils import load_trimodal_data
             offsets = [[0,0], [4,0], [2,4]]
             dataset = load_trimodal_data(sample_size, offsets, noise=0)[:, :2]
@@ -59,59 +75,67 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
             
     # -------------------------------- eval method ------------------------------- #
     if eval_method == 'xt':
+        print('evaluating likelihood score g_t at x_t.')
         eval_at_mean = False
     elif eval_method == 'mu':
+        print('evaluating likelihood score g_t at mu.')
         eval_at_mean = True
 
     # ----------------------------- generate prior samples ----------------------------- #
-    if distribution_type == 'prior':    
+    if distribution_type == 'prior':
+        print('sampling from the prior.')
         if sampling_method == 'iid':
-            x_rev = p_sample_loop(model, (sample_size, ambient_dims), num_steps, device, normalized_beta_schedule=normalized_beta_schedule)
-            
-            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}')
-            Path(save_dir).mkdir(parents=True, exist_ok=True)
-            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_rev)
-            
-        elif sampling_method == 'seq':
-            from prior_utils import sequential_prior_sampler
-            _, x_fwd, x_rev = sequential_prior_sampler(model, manifold_initial_point, sample_size, num_steps, disable_tqdm=True, normalized_beta_schedule=normalized_beta_schedule)
-            
+            print('sampling method is iid.')
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
-            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_rev)
-            zarr.save(os.path.join(save_dir, f'x_fwds.zarr'), x_fwd)
-        
+
+            for run_idx in trange(num_runs, desc='run number'):
+                x_rev = p_sample_loop(model, (sample_size, ambient_dims), num_steps, device, normalized_beta_schedule=normalized_beta_schedule, schedule=schedule)
+
+                zarr.save(os.path.join(save_dir, f'x_revs-run_num={run_idx}.zarr'), x_rev)
+            
+        elif sampling_method == 'seq':
+            print('sampling method is seq.')
+            from prior_utils import sequential_prior_sampler
+            save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
+            Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+            for run_idx in trange(num_runs, desc='run number'):
+                _, x_fwd, x_rev = sequential_prior_sampler(model, manifold_initial_point, sample_size, num_steps, disable_tqdm=True, normalized_beta_schedule=normalized_beta_schedule, schedule=schedule)
+
+                zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
+                zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
+
         
     # ----------------------------- generate posterior samples ----------------------------- #
     elif distribution_type == 'posterior':
-        classifier = select_model('noisy-image-classifier-with-noise-info', 2)[0]
+        print(f'sampling from the posterior. Posterior type is {posterior_type}')
+        classifier = None
+        if posterior_type=='td' or posterior_type=='both':
+            classifier = select_model('noisy-image-classifier-with-noise-info', 2)[0]
+            classifier.to(device)
+            classifier.eval()
         
         if sampling_method == 'iid':
+            print('sampling method is iid.')
             from likelihood_utils import perform_variable_inference
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
-            
-            x_revs = []
+        
             for run_idx in trange(num_runs, desc='run number'):
-                x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean)
-                x_revs.append(x_rev)
-            x_revs = np.stack(x_revs, axis=0)
-            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_revs)
+                x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, schedule=schedule)
+                zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
             
         elif sampling_method == 'seq':
+            print('sampling method is seq.')
             from likelihood_utils import variable_neural_inference
             save_dir = os.path.join(save_dir, f'{distribution_type}-{sampling_method}-{manifold_type}-{posterior_type}-{eval_method}/num_samples={sample_size:.0g}-num_runs={num_runs:.0g}-batch_idx={int(batch_idx)}')
             Path(save_dir).mkdir(parents=True, exist_ok=True)
             
-            x_fwds = []; x_revs = []
             for run_idx in trange(num_runs, desc='run number'):
-                _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=True)
-                x_fwds.append(x_fwd)
-                x_revs.append(x_rev)
-            x_fwds = np.stack(x_fwds, axis=0)
-            x_revs = np.stack(x_revs, axis=0)
-            zarr.save(os.path.join(save_dir, f'x_revs.zarr'), x_revs)
-            zarr.save(os.path.join(save_dir, f'x_fwds.zarr'), x_fwds)
+                _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=True, schedule=schedule)
+                zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
+                zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
 
 def main():
     log_folder = os.path.join(base_dir, 'core/cluster/logs/generate_samples', '%j')
@@ -128,18 +152,33 @@ def main():
         slurm_job_name = 'gen_samples',
         nodes = 1,
         slurm_partition = 'ccn',
-        slurm_cpus_per_task = 4,
+        slurm_cpus_per_task = 1,
         slurm_ntasks_per_node = 1,
-        mem_gb = 128,
-        timeout_min = 600,
+        # slurm_mem_per_cpu = 1024*256,
+        mem_gb = 512,
+        timeout_min = 1440
     )
+
+    # slurm parameters
+    # ex.update_parameters(
+    #     slurm_job_name = 'generate',
+    #     nodes = 1,
+    #     slurm_partition = 'gpu',
+    #     slurm_gpus_per_task=1,
+    #     slurm_ntasks_per_node=1,
+    #     slurm_constraint='a100',
+    #     cpus_per_task=12,
+    #     mem_gb=32,
+    #     timeout_min=3000,
+    # )
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
-    sample_size = 1e5
-    batch_size = 20  # the number of jobs 
-    num_runs = 1  # how many repeats of the data collection per job
-    
+    sample_size = 1e3
+    batch_size = 1  # the number of jobs 
+    num_runs = 100  # how many repeats of the data collection per job
+
+
     '''
     distribution_types = ['prior', 'posterior']
     sampling_methods = ['iid', 'seq']
@@ -151,14 +190,17 @@ def main():
     '''
     
     distribution_types = ['posterior']
-    sampling_methods = ['iid', 'seq']
+    sampling_methods = ['iid']
     
     # only for posterior distribution
     manifold_types = ['unimodal']
     eval_methods = ['xt', 'mu']
     posterior_types = ['bu']
     
-        
+
+    model_name = 'unconditional-dendritic-4-layers'
+    model_num = 5
+    
     # ------------------------------- save location ------------------------------- #
     save_dir = os.path.join(base_dir, 'core', 'saved_arrays', 'samples')
     from pathlib import Path
@@ -178,6 +220,8 @@ def main():
                                         sampling_method, 
                                         distribution_type, 
                                         sample_size, 
+                                        model_name=model_name,
+                                        model_num=model_num
                                         )
                         jobs.append(job)
             elif distribution_type == 'posterior':
@@ -194,6 +238,8 @@ def main():
                                                     distribution_type, 
                                                     sample_size, 
                                                     manifold_type=manifold_type, 
+                                                    model_name=model_name,
+                                                    model_num=model_num,
                                                     eval_method=eval_method, 
                                                     posterior_type=posterior_type
                                                     )
