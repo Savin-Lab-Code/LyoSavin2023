@@ -591,7 +591,8 @@ def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label,
     
     # move to device
     prior_sampler = prior_sampler.to(device)
-    classifier = classifier.to(device)
+    if classifier:
+        classifier = classifier.to(device)
     x_init = x_init.to(device)
     Mm = Mm.to(device)
     
