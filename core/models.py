@@ -1,4 +1,12 @@
-#%% denoiser
+import os, sys
+project_root = os.path.abspath("")
+if project_root[-12:] == 'LyoSavin2023':
+    base_dir = project_root
+else:
+    base_dir = os.path.dirname(project_root)
+sys.path.append(os.path.join(base_dir, 'core'))
+sys.path.append(os.path.join(base_dir, 'core/utils'))
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -626,3 +634,57 @@ class NoisyImageClassifierNoTimeEmbedding(nn.Module):
         out = self.softmax(out)
         return out
 # %%
+
+# ------------------------- Stochastic Neural Network ------------------------ #
+# betas = forward_process(num_steps, device, schedule)[0]
+
+# define the model
+from utils import extract
+class StochasticLayer(nn.Module):
+    '''
+    A custom module. Defines a linear matrix and an embedding matrix. 
+    '''
+    def __init__(self, num_in, num_out, betas):
+        super(StochasticLayer, self).__init__()
+        self.num_in = num_in  # 2 for a 2 pixel image
+        self.num_out = num_out  # size of the hidden layer, e.g. 32
+        self.linear = nn.Linear(num_in + 1, num_out)  # A normal linear layer, 3x32
+        self.nonlin = nn.ReLU()
+        self.betas = nn.Parameter(betas, requires_grad=False)
+        
+    def forward(self, x, t):        
+        out = torch.cat((x, t), dim=1)
+        out = self.linear(out)
+        out = self.nonlin(out)
+        # print(x.shape)  # 128 x 2 
+        # print(out.shape)  # 128 x 42
+        # print(t.shape)  # 128 x 1
+        
+        sigma_t = extract(self.betas.reshape(-1, 1), t.long(), t).sqrt()
+        # print(sigma_t.shape)  # 128 x 1
+        out = out + sigma_t * torch.randn_like(out)
+        return out
+    
+
+class SNN(nn.Module):
+    
+    def __init__(self, num_hidden, betas):
+        super(SNN, self).__init__()
+        self.condlin1 = StochasticLayer(2, num_hidden, betas)
+        self.condlin2 = StochasticLayer(num_hidden, num_hidden, betas)
+        self.condlin3 = StochasticLayer(num_hidden, num_hidden, betas)
+        self.linear = nn.Linear(num_hidden, 2)
+        
+    def forward(self, x, t):
+        '''
+        x is the image
+        t is the timestep
+        '''
+        t = t.float().view(len(t), 1)
+        
+        x = self.condlin1(x, t)
+        x = self.condlin2(x, t)
+        x = self.condlin3(x, t)
+        x = self.linear(x)
+        
+        return x

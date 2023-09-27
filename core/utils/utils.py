@@ -235,6 +235,7 @@ def select_model(model_name, model_version_number, device='cpu', print_details=F
     from models import NoiseConditionalEstimatorConcat, UnbiasedNoiseConditionalEstimatorConcat3Layers, UnbiasedNoiseConditionalEstimatorConcat4Layers
     from models import VariableDendriticCircuit, VariableDendriticCircuitSomaBias
     from models import NoisyImageClassifierWithTimeEmbedding
+    from models import SNN
     from utils import load_model_description, load_model_weights, count_parameters
 
     # diffusion model parameters
@@ -279,6 +280,9 @@ def select_model(model_name, model_version_number, device='cpu', print_details=F
         model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=dim_amb, num_out=dim_amb, bias=True)
     elif model_name == 'noisy-image-classifier-with-noise-info':
         model = NoisyImageClassifierWithTimeEmbedding(dim_amb, num_hidden, num_classes, num_steps)
+    elif model_name == 'snn':
+        betas = forward_process(num_steps, device)[0]
+        model = SNN(num_hidden, betas)
 
     # load model state dict
     model = load_model_weights(model, model_name, model_num, device)
