@@ -314,7 +314,7 @@ def sequential_posterior_cycle(cur_z, prior_sampler, Mm, sigma, s, n_steps, alph
     return cur_z, z_forward, z_reverse
 
 # ------------- sequential sampling of the posterior distribution ------------ #
-def sequential_posterior_sampler(prior_sampler, z, M, likelihood_sigma, s, num_cycles, n_steps=100, burn=True, normalized_beta_schedule=False, eval_at_mean=False, device='cpu', status_bar=False):
+def sequential_posterior_sampler(prior_sampler, z, M, likelihood_sigma, s, num_cycles, n_steps=100, burn=True, normalized_beta_schedule=False, eval_at_mean=False, device='cpu', status_bar=False, disable_tqdm=True):
     '''
     for a given continuous likelihood, generate samples to/from the posterior distribution sequentially (rather than iid). 
     '''
@@ -325,10 +325,14 @@ def sequential_posterior_sampler(prior_sampler, z, M, likelihood_sigma, s, num_c
     else: 
         cur_z = z
     cur_z = cur_z.to(device)
+
+    num_cycles = int(num_cycles)
     
     Mm = M @ M.T
     Mm = torch.from_numpy(Mm).float()
     Mm = Mm.to(device)
+
+    prior_sampler.to(device)
     
     # burn the first sample
     if burn:
@@ -340,8 +344,8 @@ def sequential_posterior_sampler(prior_sampler, z, M, likelihood_sigma, s, num_c
     z_seq = []
     z_rev_seq = []
     step = num_cycles // 10
-    for j in range(num_cycles):
-        if j % step == 0 and status_bar:
+    for j in trange(num_cycles, disable=disable_tqdm):
+        if j % int(step) == 0 and status_bar:
             print(f'cycle {j}/{num_cycles}', flush=True)
         cur_z, z_forward, z_reverse = sequential_posterior_cycle(cur_z, prior_sampler, Mm, likelihood_sigma, s, n_steps, alphas, betas, one_minus_alphas_bar_sqrt, normalized_beta_schedule, eval_at_mean, device)
         z_seq.append(cur_z)
@@ -474,7 +478,7 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
     
     # -------------------------------- likelihood -------------------------------- #
     # bottom-up (continuous) likelihood
-    if mode=='bottom-up' or mode=='bu' or mode=='both':
+    if mode=='bottom-up' or mode=='bu':
         if eval_at_mean:
             # evaluating the likelihood score at the mean of the prior transition operator
             likelihood_score = compute_occlusion_score(mean, Mm, sigma, device)
@@ -482,7 +486,7 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
             # evaluating the likelihood score at the current sample
             likelihood_score = compute_occlusion_score(x, Mm, sigma, device)
     
-    if mode=='top-down' or mode=='td' or mode=='both':
+    elif mode=='top-down' or mode=='td':
         if eval_at_mean:
             # top-down likelihood (Classifier)
             if prev_mean == None:
@@ -492,6 +496,14 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
             # top-down likelihood (Classifier)
             classifier_score = compute_classifier_score(classifier, x, label, t)
     
+    elif mode=='both':
+        if eval_at_mean:
+            likelihood_score = compute_occlusion_score(mean, Mm, sigma, device)
+            classifier_score = compute_classifier_score(classifier, mean, label, t)
+        else:
+            likelihood_score = compute_occlusion_score(x, Mm, sigma, device)
+            classifier_score = compute_classifier_score(classifier, x, label, t)
+
     # Generate z
     z = torch.randn_like(x, device=device)
     
@@ -502,16 +514,16 @@ def variable_inference_sample(prior_sampler, classifier, Mm, mode, label, sigma,
         if t>98 and verbose:
             print('top-down mode')
         posterior_mean = mean + s_td * beta_t * classifier_score
-    if mode == 'bottom-up' or mode == 'bu':
+    elif mode == 'bottom-up' or mode == 'bu':
         if t>98 and verbose:
             print('bottom-up mode')
         posterior_mean = mean + s_bu * beta_t * likelihood_score
-    if mode == 'both':
+    elif mode == 'both':
         if t>98 and verbose:
             print('both mode')
         # Posterior mean: \mu + \beta_t * \nabla_x log p(y | x) + \beta_t * \nabla_x log p(MMx |x)
         posterior_mean = mean + s_td * beta_t * classifier_score + s_bu * beta_t * likelihood_score
-    if mode == 'neither' or mode == 'prior-only': 
+    elif mode == 'neither' or mode == 'prior-only': 
         if t>98 and verbose:
             print('prior-only mode')
         posterior_mean = mean
@@ -591,7 +603,7 @@ def variable_neural_inference(prior_sampler, classifier, v, x_init, mode, label,
     
     # move to device
     prior_sampler = prior_sampler.to(device)
-    if classifier:
+    if classifier!=None:
         classifier = classifier.to(device)
     x_init = x_init.to(device)
     Mm = Mm.to(device)
