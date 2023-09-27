@@ -161,33 +161,33 @@ def main():
     else:
         print(f'!!! Slurm executable `srun` not found. Will execute jobs on "{ex.cluster}"')
 
-    ex.update_parameters(
-        slurm_job_name = 'gen_samples',
-        nodes = 1,
-        slurm_partition = 'ccn',
-        slurm_cpus_per_task = 4,
-        slurm_ntasks_per_node = 1,
-        mem_gb = 512,
-        timeout_min = 1440
-    )
+    # ex.update_parameters(
+    #     slurm_job_name = 'gen_samples',
+    #     nodes = 1,
+    #     slurm_partition = 'ccn',
+    #     slurm_cpus_per_task = 4,
+    #     slurm_ntasks_per_node = 1,
+    #     mem_gb = 512,
+    #     timeout_min = 1440
+    # )
 
     # slurm parameters
-    # ex.update_parameters(
-    #     slurm_job_name = 'generate',
-    #     nodes = 1,
-    #     slurm_partition = 'gpu',
-    #     slurm_gpus_per_task=1,
-    #     slurm_ntasks_per_node=1,
-    #     slurm_constraint='a100',
-    #     cpus_per_task=12,
-    #     mem_gb=32,
-    #     timeout_min=3000,
-    # )
+    ex.update_parameters(
+        slurm_job_name = 'generate',
+        nodes = 1,
+        slurm_partition = 'gpu',
+        slurm_gpus_per_task=1,
+        slurm_ntasks_per_node=1,
+        slurm_constraint='a100',
+        cpus_per_task=12,
+        mem_gb=512,
+        timeout_min=3000,
+    )
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
-    sample_size = int(5e4)
-    batch_size = 1  # the number of jobs 
+    sample_size = int(5e3)
+    batch_size = 10  # the number of jobs
     num_runs = 1  # how many repeats of the data collection per job
 
     print('batch_size is:', batch_size)
@@ -195,8 +195,8 @@ def main():
 
 
     
-    distribution_types = ['prior']  # ['prior', 'posterior']
-    sampling_methods = ['iid']  # ['iid', 'seq']
+    distribution_types = ['posterior']  # ['prior', 'posterior']
+    sampling_methods = ['iid', 'seq']  # ['iid', 'seq']
     
     # only for posterior distribution
     manifold_types = ['unimodal']  # ['unimodal', 'trimodal']
@@ -204,20 +204,20 @@ def main():
     eval_methods = ['xt', 'mu']  # ['xt', 'mu']
     
 
-    # specify models
-    eval_epochs = [i for i in range(0, int(15e5), int(1e5))]
-    eval_epochs.append(int(15e5-1e4))
+    # # specify models
+    # eval_epochs = [i for i in range(0, int(15e5), int(1e5))]
+    # eval_epochs.append(int(15e5-1e4))
 
-    layers = [2, 4, 5, 6, 7, 10]
-    # layers = [2]
-    model_names = []
-    for l in layers:
-        model_name = f'unconditional-dendritic-{l}-layers'
-        model_names.append(model_name)
+    # layers = [2, 4, 5, 6, 7, 10]
+    # model_names = []
+    # for l in layers:
+    #     model_name = f'unconditional-dendritic-{l}-layers'
+    #     model_names.append(model_name)
 
-    model_nums = [1, 2, 3, 4]
-    # model_nums = [1]
+    # model_nums = [1, 2, 3, 4]
 
+    model_name = 'unconditional-dendrtici-4-layers'
+    model_num = 5
 
     
     # ------------------------------- save location ------------------------------- #

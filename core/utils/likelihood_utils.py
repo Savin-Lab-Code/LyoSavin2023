@@ -683,6 +683,14 @@ def calculate_histogram_for_iid_data(iid_data, num_bins, lim):
     histograms = np.stack(histograms)
     return histograms
 
+def calculate_histogram(data, num_bins, lim):
+    '''
+    takes in samples of shape (num_samples, num_amb_dim=2) and returns a histogram of the data of shape (num_bins, num_bins)
+    '''
+    bins = np.linspace(-lim, lim, num_bins+1)
+    histogram = np.histogram2d(data[:, 0], data[:, 1], bins=bins)[0]
+    return histogram
+
 # ---------------------- for the class conditional model --------------------- #
 @torch.no_grad()
 def p_sample_class(model, x, t, c, alphas, betas, one_minus_alphas_prod_sqrt, device):

@@ -3,3 +3,4 @@ __pycache__/
 core/saved_arrays/.DS_Store
 core/cluster/logs/*
 core/saved_arrays/samples/*
+core/saved_arrays/morphology_all/*
