@@ -55,15 +55,25 @@ def reverse_process(model,
     
     # define model
     if pretrained_model['use_pretrained_model_weights']:
-        from utils import load_model_weights
-        pretrained_model_name = pretrained_model['model_name']
-        pretrained_model_num = pretrained_model['model_num']
-        print(f'taking weights from pretrained model {pretrained_model_name}_{pretrained_model_num}!')
-        model = load_model_weights(model, pretrained_model_name, pretrained_model_num, device)
+        if pretrained_model['use_checkpoint_weights']==False:
+            from utils import load_model_weights
+            pretrained_model_name = pretrained_model['model_name']
+            pretrained_model_num = pretrained_model['model_num']
+            print(f'taking weights from pretrained model {pretrained_model_name}_{pretrained_model_num}!')
+            model = load_model_weights(model, pretrained_model_name, pretrained_model_num, device)
+        elif pretrained_model['use_checkpoint_weights']==True:
+            from utils import load_model_weights_from_chkpt
+            model, num_steps, ambient_dims = load_model_weights_from_chkpt(pretrained_model['model_name'], pretrained_model['model_num'], epoch_number=pretrained_model['checkpoint_epoch'], device=device)
+            
+            
     model.to(device)
 
     # training parameteres
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    if pretrained_model['use_pretrained_model_weights'] and pretrained_model['use_checkpoint_weights']==True:
+        from utils import load_optimizer_state_dict
+        optimizer = load_optimizer_state_dict(optimizer, pretrained_model['model_name'], pretrained_model['model_num'], epoch_number=pretrained_model['checkpoint_epoch'], device=device)
+        
 
     run_dir = os.path.join(base_dir, 'demos/runs', f'{model_name}_{model_number}')
     tb = SummaryWriter(run_dir)
@@ -136,10 +146,11 @@ def train_model(model_name,
 
     # ------------------------------ define dataset ------------------------------ #
     dataset = generate_2d_swiss_roll(dataset_size, rescaled=True, return_as_tensor=True)[1]
+    # dataset = load_unimodal_data_nd(dataset_size, 'swiss_roll_3d', 10, rotation_angle=np.pi/4, noise=0, shrink_y_axis=True)
 
     # -------------------------------- load model -------------------------------- #
-    # model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
-    model = NoiseConditionalEstimatorConcat(num_hidden)
+    model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
+    # model = NoiseConditionalEstimatorConcat(num_hidden)
     
     # -------------------- TRAINING - reverse diffusion process ------------------ #
     model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, pretrained_model)
@@ -150,30 +161,33 @@ def main():
     print('we are running!')
 
     # -------------------------- set model parameters -------------------------- #
-    # model_name = 'unconditional-dendritic-4-layers'
-    # model_number = 5
-    model_name = 'unconditional-concat'
-    model_number = 18
+    model_name = 'unconditional-dendritic-10-layers'
+    model_number = 6
+    # model_name = 'unconditional-concat'
+    # model_number = 18
     num_steps = 100
     forward_schedule = 'sine'
-    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]  # 10 layers
+    num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]  # 10 layers
     # num_hidden = [3, 3, 3, 3, 3, 3, 4]  # 7 layers
     # num_hidden = [4, 4, 4, 4, 4, 3]  # 6 layers
     # num_hidden = [5, 5, 5, 5, 5]  # 5 layers
     # num_hidden = [8, 8, 7, 7]  # 4 layers
     # num_hidden = [59, 59]  # 2 layers
-    num_hidden = 128
+    # num_hidden = 128
     num_ambient_dims = 2
     num_epochs = 15e5
     manifold_type = 'swiss_roll'
     manifold_noise_amount = 0
+    # manifold_rotation_angle = 'np.pi/4'
     dataset_size = int(2e3)
     batch_size = 128
     learning_rate = 3e-4
     pretrained_model = {
-        'use_pretrained_model_weights': False,
-        'model_name': 'unconditional-dendritic',
-        'model_num': 62
+        'use_pretrained_model_weights': True,
+        'use_checkpoint_weights': True,
+        'checkpoint_epoch': 1490000,
+        'model_name': 'unconditional-dendritic-10-layers',
+        'model_num': 1
     }
 
     # -------------------------- save model description -------------------------- #
@@ -184,9 +198,10 @@ def main():
         'forward_schedule': forward_schedule,
         'num_hidden': num_hidden,
         'num_ambient_dims': num_ambient_dims,
-        'num_epochs': f'{num_epochs:.0e}',
+        'num_epochs': f'{num_epochs:.1e}',
         'manifold_type': manifold_type,
         'manifold_noise_amount': manifold_noise_amount,
+        # 'manifold_rotation_angle': manifold_rotation_angle,
         'dataset_size': f'{dataset_size:.0e}',
         'batch_size': batch_size,
         'learning_rate': f'{learning_rate:.0e}',
@@ -195,6 +210,8 @@ def main():
     if pretrained_model['use_pretrained_model_weights']:
         description['pretrained_model_name'] = pretrained_model['model_name']
         description['pretrained_model_num'] = pretrained_model['model_num']
+        if pretrained_model['use_checkpoint_weights']:
+            description['pretrained_checkpoint_epoch'] = pretrained_model['checkpoint_epoch']
 
     json_savedir = os.path.join(base_dir, 'core/model_description')
     model_name_and_number = f'{model_name}_{model_number}'

@@ -294,17 +294,24 @@ def select_model(model_name, model_version_number, device='cpu', print_details=F
 
 
 
-def load_model_weights_from_chkpt(model_name, model_num, epoch_number, checkpoint_path='saved_weights'):
+def load_model_weights_from_chkpt(model_name, model_num, epoch_number, checkpoint_path='saved_weights', device=torch.device('cpu')):
     model, num_steps, ambient_dims = select_model(model_name, model_num)
 
     checkpoint_path = os.path.join(base_dir, 'core', checkpoint_path, f'{model_name}_{str(model_num)}')
     epoch_file = 'epoch='+str(epoch_number)
-    file = torch.load(os.path.join(checkpoint_path, epoch_file, 'checkpoint.pt'), map_location=torch.device('cpu'))
+    file = torch.load(os.path.join(checkpoint_path, epoch_file, 'checkpoint.pt'), map_location=device)
     state_dict = file['model_state_dict']
     model.load_state_dict(state_dict)
     model.eval()
-
     return model, num_steps, ambient_dims
+
+def load_optimizer_state_dict(optimizer, model_name, model_num, epoch_number, checkpoint_path='saved_weights', device=torch.device('cpu')):
+    checkpoint_path = os.path.join(base_dir, 'core', checkpoint_path, f'{model_name}_{str(model_num)}')
+    epoch_file = 'epoch='+str(epoch_number)
+    file = torch.load(os.path.join(checkpoint_path, epoch_file, 'checkpoint.pt'), map_location=device)
+    optimizer_state_dict = file['optimizer_state_dict']
+    optimizer.load_state_dict(optimizer_state_dict)
+    return optimizer
 
 
 def save_or_load_to_zarr(mode, name, data=False):

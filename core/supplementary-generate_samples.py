@@ -161,32 +161,32 @@ def main():
     else:
         print(f'!!! Slurm executable `srun` not found. Will execute jobs on "{ex.cluster}"')
 
-    # ex.update_parameters(
-    #     slurm_job_name = 'gen_samples',
-    #     nodes = 1,
-    #     slurm_partition = 'ccn',
-    #     slurm_cpus_per_task = 4,
-    #     slurm_ntasks_per_node = 1,
-    #     mem_gb = 512,
-    #     timeout_min = 1440
-    # )
+    ex.update_parameters(
+        slurm_job_name = 'gen_samples',
+        nodes = 1,
+        slurm_partition = 'ccn',
+        slurm_cpus_per_task = 4,
+        slurm_ntasks_per_node = 1,
+        mem_gb = 512,
+        timeout_min = 1440
+    )
 
     # slurm parameters
-    ex.update_parameters(
-        slurm_job_name = 'generate',
-        nodes = 1,
-        slurm_partition = 'gpu',
-        slurm_gpus_per_task=1,
-        slurm_ntasks_per_node=1,
-        slurm_constraint='a100',
-        cpus_per_task=12,
-        mem_gb=512,
-        timeout_min=3000,
-    )
+    # ex.update_parameters(
+    #     slurm_job_name = 'generate',
+    #     nodes = 1,
+    #     slurm_partition = 'gpu',
+    #     slurm_gpus_per_task=1,
+    #     slurm_ntasks_per_node=1,
+    #     slurm_constraint='a100',
+    #     cpus_per_task=12,
+    #     mem_gb=512,
+    #     timeout_min=3000,
+    # )
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
-    sample_size = int(5e3)
+    sample_size = int(1e4)
     batch_size = 10  # the number of jobs
     num_runs = 1  # how many repeats of the data collection per job
 
@@ -216,8 +216,8 @@ def main():
 
     # model_nums = [1, 2, 3, 4]
 
-    model_name = 'unconditional-dendrtici-4-layers'
-    model_num = 5
+    model_name = 'unconditional-dendritic-4-layers'
+    model_num = 1
 
     
     # ------------------------------- save location ------------------------------- #
