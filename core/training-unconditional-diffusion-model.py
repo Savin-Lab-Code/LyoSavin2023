@@ -53,6 +53,14 @@ def reverse_process(model,
     # training set
     dataset = dataset.to(device)
     
+    print('model_name:', model_name)
+    print('model_number:', model_number)
+    print('num_steps:', num_steps)
+    print('forward_schedule:', forward_schedule)
+    print('num_hidden:', num_hidden)
+    print('num_epochs:', num_epochs)
+    print('dataset shape:', dataset.shape)
+    
     # define model
     if pretrained_model['use_pretrained_model_weights']:
         if pretrained_model['use_checkpoint_weights']==False:
@@ -64,7 +72,7 @@ def reverse_process(model,
         elif pretrained_model['use_checkpoint_weights']==True:
             from utils import load_model_weights_from_chkpt
             model, num_steps, ambient_dims = load_model_weights_from_chkpt(pretrained_model['model_name'], pretrained_model['model_num'], epoch_number=pretrained_model['checkpoint_epoch'], device=device)
-            
+            print('model weights loaded from checkpoint!', flush=True)
             
     model.to(device)
 
@@ -73,7 +81,7 @@ def reverse_process(model,
     if pretrained_model['use_pretrained_model_weights'] and pretrained_model['use_checkpoint_weights']==True:
         from utils import load_optimizer_state_dict
         optimizer = load_optimizer_state_dict(optimizer, pretrained_model['model_name'], pretrained_model['model_num'], epoch_number=pretrained_model['checkpoint_epoch'], device=device)
-        
+        print('optimizer state dict loaded from checkpoint!', flush=True)
 
     run_dir = os.path.join(base_dir, 'demos/runs', f'{model_name}_{model_number}')
     tb = SummaryWriter(run_dir)
@@ -97,9 +105,13 @@ def reverse_process(model,
             loss.backward()
             # call the step function to update the parameters
             optimizer.step()
-            
-        if t % int(1e4) == 0:
-            save_checkpoint(t, model.state_dict(), optimizer.state_dict(), loss.item(), model_name, model_number)
+        
+        if t <= int(2e5):
+            if t % int(1e4) == 0:
+                save_checkpoint(t, model.state_dict(), optimizer.state_dict(), loss.item(), model_name, model_number)
+        else:
+            if t % int(1e5) == 0:
+                save_checkpoint(t, model.state_dict(), optimizer.state_dict(), loss.item(), model_name, model_number)
         
         # write to tensorboard
         tb.add_scalar('Loss', loss.item(), t)
@@ -137,6 +149,7 @@ def train_model(model_name,
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}', flush=True)
+    
     sys.path.append(os.path.join(base_dir, 'core'))
     sys.path.append(os.path.join(base_dir, 'core/utils'))
     
@@ -186,7 +199,7 @@ def main():
         'use_pretrained_model_weights': True,
         'use_checkpoint_weights': True,
         'checkpoint_epoch': 1490000,
-        'model_name': 'unconditional-dendritic-10-layers',
+        'model_name': model_name,
         'model_num': 1
     }
 
