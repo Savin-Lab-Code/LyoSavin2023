@@ -51,6 +51,58 @@ def project_onto_clean_2d_roll_manifold(datapoints, clean_manifold, min, max, cl
     return manifold_pts_xy, manifold_pts_t
 
 
+
+def project_onto_clean_swiss_roll_in_trimodal_dataset(model_output, dataset_size:int = int(1e3), offsets:list = [[0,0], [4,0], [2,4]], noise:float = 0):
+    '''
+    determine the closest point on the swiss roll manifold (which is part of a trimodal dataset) and return the t value and (x,y) values
+    '''
+    from dataset_utils import generate_2d_swiss_roll
+    from sklearn.datasets import make_swiss_roll, make_moons, make_s_curve
+    
+    # first dataset: swiss roll
+    swiss_roll = generate_2d_swiss_roll(dataset_size, rescaled=False, return_as_tensor=False)[1]
+    # second dataset: moons
+    moons, _ = make_moons(dataset_size, noise=noise)
+    # third manifold: s_curve
+    s_curve, _ = make_s_curve(dataset_size, noise=noise)
+    s_curve = s_curve[:, [0, 2]]/1.5
+    
+    def offset_manifolds(manifolds, offsets):
+        manifold1 = manifolds[0] + offsets[0]
+        manifold2 = manifolds[1] + offsets[1]
+        manifold3 = manifolds[2] + offsets[2]
+        return manifold1, manifold2, manifold3
+
+    swiss_roll, moons, s_curve = offset_manifolds([swiss_roll, moons, s_curve], offsets)
+
+    # convert to torch tensors and float
+    swiss_roll = torch.Tensor(swiss_roll).float()
+    moons = torch.Tensor(moons).float()
+    s_curve = torch.Tensor(s_curve).float()
+
+    # combine the three manifolds
+    combined_dataset = torch.cat((swiss_roll, moons, s_curve), dim=0)
+
+    from utils import rescale_samples_to_pm1
+    dataset = rescale_samples_to_pm1(combined_dataset)
+    swiss_roll = dataset[:int(dataset_size), :].numpy()
+
+    calculate_distance = lambda x: np.linalg.norm(x - swiss_roll, ord=2, axis=1)
+    assert model_output.shape[1] == 2
+    
+    min_idxs = np.zeros(model_output.shape[0], dtype=int)
+
+    for idx in range(model_output.shape[0]):
+        print(idx)
+        distances = calculate_distance(model_output[idx])
+        min_idx = np.argmin(distances)
+        print(min_idx)
+        min_idxs[idx] = min_idx
+    
+    return swiss_roll, min_idxs, swiss_roll[min_idxs]
+
+
+
 def project_onto_clean_line_manifold(datapoints, clean_manifold, t, angle): 
     if type(datapoints) == torch.Tensor:
         datapoints = datapoints.detach().numpy()
