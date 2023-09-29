@@ -9,3 +9,4 @@ demos/runs/*
 core/saved_weights/unconditional-dendritic*/
 core/saved_weights/unconditional-concat_*/
 demos/test.ipynb
+.vscode
