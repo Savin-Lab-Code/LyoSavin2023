@@ -27,14 +27,16 @@ def show_datapoint_in_context(data, idx, ax, xlim=[-1,1], ylim=[-1,1]):
     ax.set_aspect('equal')
     ax.set(title='the sample in the context of $q(x_0)$')
 
-def plot_data_distribution(data_samples, lims=[-1,1], show_ticks=False):
+def plot_data_distribution(data_samples, lims=[-1,1], show_ticks=False, show_title=False):
     '''
     plot the data distribution
     '''
     fig, ax = plt.subplots(1, 1)
-    ax.scatter(data_samples[:,0], data_samples[:,1], s=1, color='orange')
+    ax.scatter(data_samples[:,0], data_samples[:,1], s=2, color='orange')
     ax.set_aspect('equal')
-    ax.set(title='data distribution $p(x)$', xlim=lims, ylim=lims)
+    ax.set(xlim=lims, ylim=lims)
+    if show_title:
+        ax.set(title='data distribution $p(x)$')
     fig.tight_layout()
     if show_ticks==False:
         from utils import remove_all_ticks_and_labels
