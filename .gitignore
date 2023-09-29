@@ -8,3 +8,4 @@ core/saved_arrays/eval_loc/fine_discretization/*
 demos/runs/*
 core/saved_weights/unconditional-dendritic*/
 core/saved_weights/unconditional-concat_*/
+demos/test.ipynb
