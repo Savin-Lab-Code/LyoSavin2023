@@ -12,7 +12,7 @@ if project_root[-12:] == 'LyoSavin2023':
 else:
     base_dir = os.path.dirname(project_root)
     
-def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distribution_type, sample_size, manifold_type='unimodal', model_name=None, model_num=None, v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=2, eval_epoch=None):
+def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distribution_type, sample_size, manifold_type='unimodal', model_name=None, model_num=None, v=None, eval_method=None, s_bu=None, s_td=None, posterior_type=None, label=0, eval_epoch=None, save_whole_sequence=True):
     global device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}', flush=True)
@@ -38,12 +38,14 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
             save_dir = os.path.join(save_dir, 'unconditional-dendritic_42')
     else:
         if eval_epoch==None:
+            # load a specific model from a saved pt file
             print(f'using specific model: {model_name}_{model_num}')
             prior_sampler, num_steps, ambient_dims = select_model(model_name, model_num)
             normalized_beta_schedule = False
             schedule='sine'
             save_dir = os.path.join(save_dir, f'{model_name}_{model_num}')
         else:
+            # load a specific model but from a checkpoint file (saved throughout training)
             print(f'using specific model: {model_name}_{model_num}, from epoch={eval_epoch}')
             from utils import load_model_weights_from_chkpt
             prior_sampler, num_steps, ambient_dims = load_model_weights_from_chkpt(model_name, model_num, eval_epoch)
@@ -61,8 +63,9 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
             v = np.array([[4, 1]]).T
             likelihood_sigma = 0.4
         elif manifold_type == 'trimodal':
-            v = np.array([[2, -5]]).T
-            likelihood_sigma = 0.5
+            # v = np.array([[2, -5]]).T
+            v = np.array([[2, 2]]).T
+            likelihood_sigma = 0.4
         if s_bu == None:
             s_bu = 1
         if s_td == None:
@@ -104,7 +107,11 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
             for run_idx in trange(num_runs, desc='run number'):
                 x_rev = p_sample_loop(prior_sampler, (sample_size, ambient_dims), num_steps, device, normalized_beta_schedule=normalized_beta_schedule, schedule=schedule)
                 x_rev = x_rev.numpy()
-                zarr.save(os.path.join(save_dir, f'x_revs-run_num={run_idx}.zarr'), x_rev)
+                if save_whole_sequence:
+                    zarr.save(os.path.join(save_dir, f'x_revs-run_num={run_idx}.zarr'), x_rev)
+                else:
+                    zarr.save(os.path.join(save_dir, f'x-run_num={run_idx}.zarr'), x_rev[-1])
+                    
             
         elif sampling_method == 'seq':
             print('sampling method is seq.')
@@ -116,8 +123,13 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
                 _, x_fwd, x_rev = sequential_prior_sampler(prior_sampler, manifold_initial_point, sample_size, num_steps, disable_tqdm=True, normalized_beta_schedule=normalized_beta_schedule, schedule=schedule)
                 x_fwd = x_fwd.numpy()
                 x_rev = x_rev.numpy()
-                zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
-                zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
+                if save_whole_sequence:
+                    zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
+                    zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
+                else:
+                    zarr.save(os.path.join(save_dir, f'x-run_num={run_idx}.zarr'), x_rev[:, -1])
+                    zarr.save(os.path.join(save_dir, f'x-run_num={run_idx}.zarr'), x_fwd[:, -1])
+                    
 
         
     # ----------------------------- generate posterior samples ----------------------------- #
@@ -137,7 +149,11 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
         
             for run_idx in trange(num_runs, desc='run number'):
                 x_rev, label = perform_variable_inference(prior_sampler, classifier, v, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, schedule=schedule)
-                zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
+                if save_whole_sequence:
+                    zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
+                else:
+                    zarr.save(os.path.join(save_dir, f'x-run_num={run_idx}.zarr'), x_rev[-1])
+                    
             
         elif sampling_method == 'seq':
             print('sampling method is seq.')
@@ -146,9 +162,14 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
             Path(save_dir).mkdir(parents=True, exist_ok=True)
             
             for run_idx in trange(num_runs, desc='run number'):
-                _, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=False, schedule=schedule)
-                zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
-                zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
+                x, x_fwd, x_rev, label = variable_neural_inference(prior_sampler, classifier, v, manifold_initial_point, posterior_type, label, likelihood_sigma, s_bu, s_td, num_steps, sample_size, device, normalized_beta_schedule, eval_at_mean, disable_tqdm=False, schedule=schedule)
+                if save_whole_sequence:
+                    zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
+                    zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
+                else:
+                    zarr.save(os.path.join(save_dir, f'x-run_num={run_idx}.zarr'), x)
+                    zarr.save(os.path.join(save_dir, f'x-run_num={run_idx}.zarr'), x)
+                    
 
 def main():
     log_folder = os.path.join(base_dir, 'core/cluster/logs/generate_samples', '%j')
@@ -167,8 +188,8 @@ def main():
         slurm_partition = 'ccn',
         slurm_cpus_per_task = 4,
         slurm_ntasks_per_node = 1,
-        mem_gb = 512,
-        timeout_min = 1440
+        mem_gb = 128,
+        timeout_min = int(60*5)
     )
 
     # slurm parameters
@@ -186,25 +207,25 @@ def main():
     
     # ----------------------------- model parameters ----------------------------- #
     # sample_size = int(1e3)
-    sample_size = int(1e4)
-    batch_size = 10  # the number of jobs
-    num_runs = 1  # how many repeats of the data collection per job
+    sample_size = int(5e2)
+    num_runs = 100  # how many repeats of the data collection per job
+    batch_size = 20  # the number of jobs
 
     print('batch_size is:', batch_size)
     print('num runs is:', num_runs)
 
 
-    
     distribution_types = ['posterior']  # ['prior', 'posterior']
     sampling_methods = ['iid', 'seq']  # ['iid', 'seq']
     
     # only for posterior distribution
-    manifold_types = ['unimodal']  # ['unimodal', 'trimodal']
-    posterior_types = ['bu']  # ['bu', 'td', 'both', 'neither']
-    eval_methods = ['xt', 'mu']  # ['xt', 'mu']
+    manifold_types = ['trimodal']  # ['unimodal', 'trimodal']
+    posterior_types = ['td', 'bu', 'both']  # ['bu', 'td', 'both', 'neither']
+    eval_methods = ['xt']  # ['xt', 'mu']
     
+    save_whole_sequence = False
 
-    # # specify models
+    # ------------------------------ specify models ------------------------------ #
     # eval_epochs = [i for i in range(0, int(15e5), int(1e5))]
     # eval_epochs.append(int(15e5-1e4))
 
@@ -216,8 +237,9 @@ def main():
 
     # model_nums = [1, 2, 3, 4]
 
-    model_name = 'unconditional-dendritic-4-layers'
-    model_num = 1
+
+    # model_name = 'unconditional-dendritic-4-layers'
+    # model_num = 1
 
     
     # ------------------------------- save location ------------------------------- #
@@ -244,7 +266,8 @@ def main():
                                                     sample_size, 
                                                     model_name=model_name,
                                                     model_num=model_num,
-                                                    eval_epoch=eval_epoch
+                                                    eval_epoch=eval_epoch,
+                                                    save_whole_sequence=save_whole_sequence,
                                                     )
                                     jobs.append(job)
             elif distribution_type == 'posterior':
@@ -261,10 +284,11 @@ def main():
                                                     distribution_type, 
                                                     sample_size, 
                                                     manifold_type=manifold_type, 
-                                                    model_name=model_name,
-                                                    model_num=model_num,
+                                                    # model_name=model_name,
+                                                    # model_num=model_num,
                                                     eval_method=eval_method, 
-                                                    posterior_type=posterior_type
+                                                    posterior_type=posterior_type,
+                                                    save_whole_sequence=save_whole_sequence,
                                                     )
                                     jobs.append(job)
     for idx in range(len(jobs)):

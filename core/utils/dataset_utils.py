@@ -691,9 +691,81 @@ def generate_2d_swiss_roll(num_samples, rescaled=True, return_as_tensor=False):
         # print('returning as tensor')
         t = torch.tensor(t, dtype=torch.float)
         clean_manifold = torch.tensor(clean_manifold, dtype=torch.float)
-    print(type(clean_manifold))
-
+    # print(type(clean_manifold))
     return t, clean_manifold
+
+def generate_2d_s_curve(num_samples, return_as_tensor=False):
+    num_samples = int(num_samples)
+    t = 3 * np.pi * (np.linspace(0, 1, num_samples) - 0.5)
+    x = np.sin(t)
+    # y = 2.0 * generator.rand(1, n_samples)
+    y = np.sign(t) * (np.cos(t) - 1)
+    clean_manifold = np.vstack([x, y]).T
+    
+    if return_as_tensor:
+        t = torch.tensor(t, dtype=torch.float)
+        clean_manifold = torch.tensor(clean_manifold, dtype=torch.float)
+    return t, clean_manifold
+
+def generate_2d_moons(n_samples, return_as_tensor=False):
+    if isinstance(n_samples, int):
+        n_samples_out = n_samples // 2
+        n_samples_in = n_samples - n_samples_out
+    else:
+        try:
+            n_samples_out, n_samples_in = n_samples
+        except ValueError as e:
+            raise ValueError(
+                "`n_samples` can be either an int or a two-element tuple."
+            ) from e
+    
+    outer_circ_x = np.cos(np.linspace(0, np.pi, n_samples_out))
+    outer_circ_y = np.sin(np.linspace(0, np.pi, n_samples_out))
+    
+    inner_circ_x = 1 - np.cos(np.linspace(0, np.pi, n_samples_in))
+    inner_circ_y = 1 - np.sin(np.linspace(0, np.pi, n_samples_in)) - 0.5
+
+    clean_manifold = np.vstack(
+        [np.append(outer_circ_x, inner_circ_x), np.append(outer_circ_y, inner_circ_y)]
+    ).T
+    
+    if return_as_tensor:
+        clean_manifold = torch.tensor(clean_manifold, dtype=torch.float)
+
+    return clean_manifold
+
+def generate_2d_trimodal_distribution(dataset_size, offsets:list = [[0,0], [4,0], [2,4]]):
+    from dataset_utils import generate_2d_swiss_roll, generate_2d_s_curve, generate_2d_moons
+    
+    # first dataset: swiss roll
+    swiss_roll = generate_2d_swiss_roll(dataset_size, rescaled=False, return_as_tensor=False)[1]
+    # second dataset: moons
+    moons = generate_2d_moons(dataset_size)
+    # third manifold: s_curve
+    _, s_curve = generate_2d_s_curve(dataset_size)
+    s_curve = s_curve/1.5
+    
+    def offset_manifolds(manifolds, offsets):
+        manifold1 = manifolds[0] + offsets[0]
+        manifold2 = manifolds[1] + offsets[1]
+        manifold3 = manifolds[2] + offsets[2]
+        return manifold1, manifold2, manifold3
+
+    swiss_roll, moons, s_curve = offset_manifolds([swiss_roll, moons, s_curve], offsets)
+
+    # convert to torch tensors and float
+    swiss_roll = torch.Tensor(swiss_roll).float()
+    moons = torch.Tensor(moons).float()
+    s_curve = torch.Tensor(s_curve).float()
+
+    # combine the three manifolds
+    combined_dataset = torch.cat((swiss_roll, moons, s_curve), dim=0)
+
+    from utils import rescale_samples_to_pm1
+    dataset = rescale_samples_to_pm1(combined_dataset)
+    
+    return dataset
+
 
 def generate_2d_swiss_roll_uniformly_distributed(num_samples, rescaled=True):
     '''

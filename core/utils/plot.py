@@ -39,6 +39,7 @@ def plot_data_distribution(data_samples, lims=[-1,1], show_ticks=False):
     if show_ticks==False:
         from utils import remove_all_ticks_and_labels
         remove_all_ticks_and_labels(ax)
+    return fig, ax
     
 def plot_trimodal_data_distribution_separate_colors(data_samples, n_samples_per_manifold, lims=[-1.5, 1.5]):
     '''
