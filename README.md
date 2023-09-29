@@ -1,4 +1,4 @@
-This repo contains code that implements the model proposed in the paper ``Complex Priors and Flexible Inference in Recurrent Circuits with Dendritic Nonlinearities". 
+This repo contains code that implements the model proposed in the paper "Complex Priors and Flexible Inference in Recurrent Circuits with Dendritic Nonlinearities". 
 
 Here is an overview of the different directories:
 
@@ -10,4 +10,3 @@ Here is an overview of the different directories:
   - `models.py` (collection of model architectures)
   - `model_description` (descriptions of the parameters of every trained model)
   - a collection of python scripts for training models or generating samples from models on a high performance computing cluster.
-
