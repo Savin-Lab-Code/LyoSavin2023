@@ -1,1 +1,0 @@
-{"model_name": "dendritic-online-learning", "model_number": 1, "num_steps": 100, "forward_schedule": "sine", "num_hidden": [8, 8, 7, 7], "num_ambient_dims": 2, "num_epochs": "2.0e+05", "manifold_type": "swiss_roll", "manifold_noise_amount": 0, "dataset_size": "2e+03", "batch_size": 128, "learning_rate": "3e-04", "use_pretrained_model": false}
