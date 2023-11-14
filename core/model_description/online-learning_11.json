@@ -1,0 +1,1 @@
+{"model_name": "online-learning", "model_type": "fc", "model_number": 11, "num_steps": 100, "forward_schedule": "sigmoid", "num_hidden": 16, "num_ambient_dims": 2, "num_epochs": "3.0e+04", "manifold_type": "swiss_roll", "manifold_noise_amount": 0, "dataset_size": "1e+03", "batch_size": 128, "learning_rate": "3e-03", "use_pretrained_model": false}
