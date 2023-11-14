@@ -71,6 +71,41 @@ class NoiseConditionalEstimatorConcat(nn.Module):
         
         return x
 
+class FullyConnectedNetwork(nn.Module):
+    '''
+    Same as the NoiseConditionalEstimatorConcat but with arbitrary number of input/output dims
+    '''
+    def __init__(self, n_dim_data, num_hidden):
+        super(FullyConnectedNetwork, self).__init__()
+        self.condlin1 = NoiseConditionalLinearConcat(n_dim_data, num_hidden)
+        self.condlin2 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
+        self.condlin3 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
+        # self.condlin4 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
+        self.linear = nn.Linear(num_hidden, n_dim_data)
+        self.nonlin = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        # self.nonlin = nn.Softplus()
+        
+    def forward(self, x, t):
+        '''
+        x is the image
+        t is the timestep
+        '''
+        x = self.condlin1(x, t)
+        x = self.nonlin(x)
+
+        x = self.condlin2(x, t)
+        x = self.nonlin(x)
+
+        x = self.condlin3(x, t)
+        x = self.nonlin(x)
+
+        # x = self.condlin4(x, t)
+        # x = self.nonlin(x)
+
+        x = self.linear(x)
+        
+        return x
 
 
 

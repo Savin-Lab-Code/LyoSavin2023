@@ -615,4 +615,33 @@ def faster_online_training(model, dataset, n_epochs, lr, tb, n_steps=100, schedu
 
     tb.flush()
     return model
-            
+
+
+def calculate_loss(model, x0_data, n_steps=100, forward_schedule='sine', norm='l2', device='cpu'):
+    from utils import extract
+    batch_size = x0_data.shape[0]
+    x0_data = x0_data.reshape(batch_size, -1)
+    
+    _, _, _, _, alphas_bar_sqrt, _, one_minus_alphas_bar_sqrt = forward_process(n_steps, device, forward_schedule)
+    
+    # Select a random step for each example
+    # t = torch.randint(0, n_steps, size=(batch_size // 2 + 1,), device=device)
+    # t = torch.cat([t, n_steps - t - 1], dim=0)[:batch_size].long()
+    t = torch.randint(0, n_steps, size=(batch_size,), device=device).long()
+    
+    # x0 multiplier
+    a = extract(alphas_bar_sqrt, t, x0_data)
+    
+    # eps multiplier
+    am1 = extract(one_minus_alphas_bar_sqrt, t, x0_data)
+    e = torch.randn_like(x0_data, device=device)
+    
+    # model input
+    x = x0_data * a + e * am1
+
+    output = model(x, t)
+
+    if norm == 'l1':
+        return torch.abs(e - output).mean()
+    elif norm == 'l2':
+        return (e - output).square().mean()
