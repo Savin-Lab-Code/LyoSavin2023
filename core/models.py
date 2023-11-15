@@ -242,7 +242,7 @@ class NoiseConditionalLinearConcat1(nn.Module):
         
         out = torch.cat((x, t), dim=1)
         out = self.linear(out)
-        return out   
+        return out
     
 
 class DendriticBranchLayer(nn.Module):
@@ -352,6 +352,96 @@ class DendriticBranchLayerNoNoiseInfo(nn.Module):
         out = torch.sum(out, dim=2)
         return out
     
+class DendriticBranchLayerSeparateT(nn.Module):
+    def __init__(self, num_in, num_out, branch_factor):
+        super(DendriticBranchLayerSeparateT, self).__init__()
+        self.num_in = num_in
+        self.num_out = num_out
+        self.branch_factor = branch_factor
+        assert self.branch_factor > 1
+
+        # self.layer_weights = torch.randn(self.num_out, self.branch_factor + 1)
+        self.layer_weights = nn.Parameter(data=torch.ones(self.num_out, self.branch_factor), requires_grad=True)
+        self.layer_weights.data.uniform_(-1, 1)
+        # self.layer_weights = nn.Parameter(data=torch.ones(self.num_out, self.branch_factor + 1, requires_grad=True))
+        # # self.layer_weights.data.uniform_(-1, 1)
+        
+        self.t_weights = nn.Parameter(torch.randn(1, self.num_out), requires_grad=True)
+
+    def forward(self, x, t):
+        '''
+        x is the image
+        t is the index corresponding to the noise level
+        Each layer's units have one to many connections to nodes of the previous layer.
+        No two units have connections to the same unit in the previous layer.
+        '''
+        t = t.float().view(len(t), 1)
+        batch_size = x.size()[0]
+        
+        x = x.view(batch_size, -1, self.branch_factor)
+        out = self.layer_weights * x
+        out = torch.sum(out, dim=2)
+        t_out = t @ self.t_weights
+        out = torch.add(out, t_out)
+        return out
+
+
+class DendriticBranchLayerSparse(nn.Module):
+    '''
+    dendritic branch layer using sparse weight matrices
+    '''
+    def __init__(self, num_in, num_out, branch_factor):
+        super(DendriticBranchLayerSparse, self).__init__()
+        self.num_in = num_in
+        self.num_out = num_out
+        self.branch_factor = branch_factor
+        assert self.branch_factor > 1
+
+        self.weight_vals = nn.Parameter(torch.randn((self.branch_factor) * self.num_out,), requires_grad=True).cuda()
+        # self.layer_weights = self._create_sparse_weight_matrix(self.num_out, self.branch_factor, self.weight_vals)
+
+        self.t_weights = nn.Parameter(torch.randn(self.num_out, 1), requires_grad=True)
+    
+    def _create_sparse_weight_matrix(self, input_dims, branch_factor, values):
+        '''
+        create tree tensor with sparse COO encoding
+        '''        
+        row_indices = np.repeat(np.arange(input_dims), branch_factor)
+        col_indices = np.arange(input_dims * branch_factor)
+        return torch.sparse_coo_tensor(indices=[row_indices, col_indices], values=values)
+
+
+    def forward(self, x, t):
+        '''
+        x is the image
+        t is the index corresponding to the noise level
+        Each layer's units have one to many connections to nodes of the previous layer.
+        No two units have connections to the same unit in the previous layer.
+        '''
+        t = t.float().view(len(t), 1)
+        batch_size = x.size()[0]
+        
+        # print('num in:', self.num_in)
+        # print('num out:', self.num_out)
+        # print('t:', t.shape)
+        # print('x:', x.shape)
+        # print('t weights:', self.t_weights.shape)
+        
+        layer_weights = self._create_sparse_weight_matrix(self.num_out, self.branch_factor, self.weight_vals)
+        
+        # print('layer weights:', layer_weights.shape)
+        
+        out = torch.sparse.mm(layer_weights, x.T)
+        t_out = self.t_weights @ t.T
+
+        # print('t_out:', t_out.shape)
+        # print('out:', out.shape)
+
+        out = torch.add(out, t_out).T
+        # print('final output:', out.shape)
+        # print('---------')
+        return out
+    
 
 class VariableDendriticCircuit(nn.Module):
     def __init__(self, hidden_cfg, num_in, num_out, bias=True):
@@ -374,6 +464,8 @@ class VariableDendriticCircuit(nn.Module):
             layers += [
                 self.nonlin,
                 DendriticBranchLayer(num_units_in_layer[i], num_units_in_layer[i+1], cfg_layers[i]),
+                # DendriticBranchLayerSparse(num_units_in_layer[i], num_units_in_layer[i+1], cfg_layers[i]),
+                # DendriticBranchLayerSeparateT(num_units_in_layer[i], num_units_in_layer[i+1], cfg_layers[i]),
             ]
         return MySequential(*layers)
 
