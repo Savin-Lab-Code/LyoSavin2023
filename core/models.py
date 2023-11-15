@@ -80,7 +80,8 @@ class FullyConnectedNetwork(nn.Module):
         self.condlin1 = NoiseConditionalLinearConcat(n_dim_data, num_hidden)
         self.condlin2 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
         self.condlin3 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
-        # self.condlin4 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
+        self.condlin4 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
+        self.condlin5 = NoiseConditionalLinearConcat(num_hidden, num_hidden)
         self.linear = nn.Linear(num_hidden, n_dim_data)
         self.nonlin = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
@@ -100,8 +101,11 @@ class FullyConnectedNetwork(nn.Module):
         x = self.condlin3(x, t)
         x = self.nonlin(x)
 
-        # x = self.condlin4(x, t)
-        # x = self.nonlin(x)
+        x = self.condlin4(x, t)
+        x = self.nonlin(x)
+        
+        x = self.condlin5(x, t)
+        x = self.nonlin(x)
 
         x = self.linear(x)
         
