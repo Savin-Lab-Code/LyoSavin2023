@@ -9,5 +9,6 @@ demos/runs/*
 !demos/runs/fc-mnist*
 core/saved_weights/unconditional-dendritic*/
 core/saved_weights/unconditional-concat_*/
+core/saved_weights/dendritic-mnist*
 demos/test.ipynb
 .vscode/
