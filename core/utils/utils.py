@@ -206,28 +206,35 @@ def count_parameters(model):
 
 
 def remove_all_ticks_and_labels(ax, include_z_axis=False):
-    '''remove all ticks and labels from a matplotlib axis'''
-    ax.tick_params(
-        axis='x',          # changes apply to the x-axis
-        which='both',      # both major and minor ticks are affected
-        bottom=False,      # ticks along the bottom edge are off
-        top=False,         # ticks along the top edge are off
-        labelbottom=False)
-    ax.tick_params(
-        axis='y',          # changes apply to the y-axis
-        which='both',      # both major and minor ticks are affected
-        left=False,      # ticks along the bottom edge are off
-        right=False,         # ticks along the top edge are off
-        labelleft=False)
-    if include_z_axis:
+    def remove(ax):
+        '''remove all ticks and labels from a matplotlib axis'''
         ax.tick_params(
-            axis='z',          # changes apply to the z-axis
+            axis='x',          # changes apply to the x-axis
+            which='both',      # both major and minor ticks are affected
+            bottom=False,      # ticks along the bottom edge are off
+            top=False,         # ticks along the top edge are off
+            labelbottom=False)
+        ax.tick_params(
+            axis='y',          # changes apply to the y-axis
             which='both',      # both major and minor ticks are affected
             left=False,      # ticks along the bottom edge are off
             right=False,         # ticks along the top edge are off
             labelleft=False)
-    
-    return ax
+        if include_z_axis:
+            ax.tick_params(
+                axis='z',          # changes apply to the z-axis
+                which='both',      # both major and minor ticks are affected
+                left=False,      # ticks along the bottom edge are off
+                right=False,         # ticks along the top edge are off
+                labelleft=False)
+        return ax
+        
+    if isinstance(ax, list) or isinstance(ax, np.ndarray):
+        for a in ax:
+            a = remove(a)
+        return ax
+    else:
+        return remove(ax)
 
 
 # -------------------- select and load weights into model -------------------- #
