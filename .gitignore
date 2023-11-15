@@ -7,6 +7,7 @@ core/saved_arrays/morphology_all/*
 core/saved_arrays/eval_loc/fine_discretization/*
 demos/runs/*
 !demos/runs/fc-mnist*
+!demos/runs/dendritic-mnist*
 core/saved_weights/unconditional-dendritic*/
 core/saved_weights/unconditional-concat_*/
 core/saved_weights/dendritic-mnist*
