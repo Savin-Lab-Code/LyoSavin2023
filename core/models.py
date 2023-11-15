@@ -79,19 +79,18 @@ class FullyConnectedNetwork(nn.Module):
         super(FullyConnectedNetwork, self).__init__()
         self.condlin1 = NoiseConditionalLinearConcat(n_dim_data, num_hidden)
         self.condlin = NoiseConditionalLinearConcat(num_hidden, num_hidden)
-        
-        def _make_layers(num_hidden, num_hidden_layers):
-            layers = []
-            for i in range(num_hidden_layers):
-                layers += [self.condlin, self.nonlin]
-            return layers
-        
-        self.hidden_layers = nn.Sequential(*self._make_layers(num_hidden, num_hidden_layers))
         self.linear = nn.Linear(num_hidden, n_dim_data)
         self.nonlin = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
+        self.hidden_layers = self._make_layers(num_hidden, num_hidden_layers)
         # self.nonlin = nn.Softplus()
         
+    def _make_layers(self, num_hidden, num_hidden_layers):
+        layers = []
+        for i in range(num_hidden_layers):
+            layers += [self.condlin, self.nonlin]
+        return MySequential(*layers)
+    
     def forward(self, x, t):
         '''
         x is the image
@@ -100,7 +99,7 @@ class FullyConnectedNetwork(nn.Module):
         x = self.condlin1(x, t)
         x = self.nonlin(x)
         
-        x = self.hidden_layers(x)
+        x = self.hidden_layers(x, t)
         x = self.linear(x)
         
         return x
