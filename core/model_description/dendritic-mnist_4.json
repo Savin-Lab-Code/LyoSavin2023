@@ -1,0 +1,1 @@
+{"model_name": "dendritic-mnist", "model_number": 4, "num_steps": 100, "forward_schedule": "sine", "batch_size": 128, "hidden_cfg": [9, 9, 8], "num_ambient_dims": 784, "num_epochs": 100.0, "manifold_type": "mnist", "lr": 0.003, "optimizer": "Adam", "classes": "all", "pretrained": false}
