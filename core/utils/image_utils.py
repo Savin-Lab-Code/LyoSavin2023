@@ -12,15 +12,39 @@ import numpy as np
 from tqdm.auto import trange
 device = 'cpu'
 
+def beta_schedule(schedule='linear', n_timesteps=100, start=1e-5, end=1e-2, device='cpu'):
+    if schedule == 'linear':
+        betas = torch.linspace(start, end, n_timesteps)
+    elif schedule == "sigmoid":
+        betas = sigmoid_beta_schedule(n_timesteps)
+        betas = betas.to(device)
+    elif schedule == 'sine':
+        linspace = torch.linspace(0, np.pi, n_timesteps, device=device)
+        modulator = 1 - torch.cos(linspace)
+        betas = (end - start)/2 * (modulator) + start
+    return betas
+
+
+def calculate_coefficients(num_steps, device, schedule='sigmoid', start=3e-3, end=1.):
+    '''calculate the forward process for the given noise schedule'''
+    betas = beta_schedule(schedule=schedule, n_timesteps=num_steps, start=start, end=end, device=device)
+    alphas = 1 - betas
+    alphas_prod = torch.cumprod(alphas, 0)
+    alphas_prod_p = torch.cat([torch.tensor([1], device=device).float(), alphas_prod[:-1]], 0)
+    alphas_bar_sqrt = torch.sqrt(alphas_prod)
+    one_minus_alphas_prod_log = torch.log(1 - alphas_prod)
+    one_minus_alphas_prod_sqrt = torch.sqrt(1 - alphas_prod)
+    return betas, alphas, alphas_prod, alphas_prod_p, alphas_bar_sqrt, one_minus_alphas_prod_log, one_minus_alphas_prod_sqrt
+
 
 def calculate_loss(model, x0_data, n_steps=100, forward_schedule='sine', norm='l2', device='cpu'):
     from utils import extract
-    from prior_utils import forward_process
+    
     batch_size = x0_data.shape[0]
     x0_data = x0_data.reshape(batch_size, -1)
     x0_data = rescale_to_neg_one_to_one(x0_data)
     
-    _, _, _, _, alphas_bar_sqrt, _, one_minus_alphas_bar_sqrt = forward_process(n_steps, device, forward_schedule, start=1e-5, end=1.)
+    _, _, _, _, alphas_bar_sqrt, _, one_minus_alphas_bar_sqrt = calculate_coefficients(n_steps, device, forward_schedule)
     
     # Select a random step for each example
     # t = torch.randint(0, n_steps, size=(batch_size // 2 + 1,), device=device)
@@ -45,11 +69,10 @@ def calculate_loss(model, x0_data, n_steps=100, forward_schedule='sine', norm='l
         return (e - output).square().mean()
     
     
-def generate_noisy_sample(num_steps, t, x_0, schedule='sigmoid', start=1e-5, end=2e-2):
+def generate_noisy_sample(num_steps, t, x_0, schedule='sigmoid', start=3e-3, end=2e-2):
     '''returns a diffused sample of x_0 at time t'''
-    from prior_utils import forward_process
     from utils import extract
-    _, _, alphas_prod, _, alphas_bar_sqrt, _, one_minus_alphas_prod_sqrt = forward_process(num_steps, device, schedule, start=start, end=end)
+    _, _, alphas_prod, _, alphas_bar_sqrt, _, one_minus_alphas_prod_sqrt = calculate_coefficients(num_steps, device, schedule, start=start, end=end)
     batch_size = x_0.shape[0]
     x_0 = rescale_to_neg_one_to_one(x_0)
     
@@ -84,7 +107,7 @@ def sigmoid_beta_schedule(timesteps, start = -3, end = 3, tau = 1, clamp_min = 1
     better for images > 64x64, when used during training
     """
     steps = timesteps + 1
-    t = torch.linspace(0, timesteps, steps, dtype = torch.float64) / timesteps
+    t = torch.linspace(0, timesteps, steps) / timesteps
     
     v_start = torch.tensor(start / tau).sigmoid()
     v_end = torch.tensor(end / tau).sigmoid()
@@ -97,70 +120,8 @@ def sigmoid_beta_schedule(timesteps, start = -3, end = 3, tau = 1, clamp_min = 1
     return torch.clip(betas, 0, 0.999)
 
 
-def cosine_beta_schedule(timesteps, s = 0.008):
-    """
-    cosine schedule
-    as proposed in https://openreview.net/forum?id=-NEXDKk8gZ
-    """
-    import math
-    steps = timesteps + 1
-    t = torch.linspace(0, timesteps, steps, dtype = torch.float64) / timesteps
-    alphas_cumprod = torch.cos((t + s) / (1 + s) * math.pi * 0.5) ** 2
-    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
-    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
-    return torch.clip(betas, 0, 0.999)
-
-
 def rescale_to_neg_one_to_one(img):
     return img * 2 - 1
 
 def unscale_to_zero_to_one(t):
     return (t + 1) * 0.5
-
-
-
-# ----------------- generate samples from the reverse process ---------------- #
-@torch.no_grad()
-def p_sample(model, x, t, n_steps, alphas, betas, one_minus_alphas_prod_sqrt, device, normalized_beta_schedule=False):
-    '''one step of the reverse process. takes a noisy data sample x_{t-1} and returns a less noisy sample x_t.'''
-    from utils import extract
-    
-    t = torch.tensor([t], device=device)
-    
-    # Factor to the model output
-    eps_factor = ((1 - extract(alphas, t, x)) / extract(one_minus_alphas_prod_sqrt, t, x))
-    
-    # Model output
-    if normalized_beta_schedule:
-        T = t.repeat(x.shape[0], 1) / n_steps
-    else:
-        T = t.repeat(x.shape[0], 1)
-    eps_theta = model(x, T)
-    
-    # Final values
-    mean = (1 / extract(alphas, t, x).sqrt()) * (x - (eps_factor * eps_theta))
-    
-    # Generate z
-    z = torch.randn_like(x, device=device)
-    
-    # Fixed sigma
-    sigma_t = extract(betas, t, x).sqrt()
-    sample = mean + sigma_t * z
-    return sample
-
-@torch.no_grad()
-def p_sample_loop(model, shape, n_steps, device='cpu', init_x=None, normalized_beta_schedule=False, schedule='sigmoid'):
-    '''takes a model and returns the sequence of x_t's during the reverse process
-    '''
-    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = forward_process(n_steps, device, schedule)
-    
-    if init_x == None:
-        cur_x = torch.randn(shape, device=device)
-    else:
-        cur_x = init_x
-    x_seq = [cur_x]
-    for i in reversed(range(n_steps)):
-        cur_x = p_sample(model, cur_x, i, n_steps, alphas,betas,one_minus_alphas_prod_sqrt, device, normalized_beta_schedule)
-        x_seq.append(cur_x)
-    x_seq = torch.stack(x_seq, dim=0).detach()
-    return x_seq

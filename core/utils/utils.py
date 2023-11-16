@@ -126,6 +126,19 @@ def make_beta_schedule(schedule='linear', n_timesteps=100, start=1e-5, end=1e-2,
         betas = (end - start)/2 * (modulator) + start
     return betas
 
+def convert_beta_t_to_beta_l(beta_t, betas):
+    beta_l_min = betas[0]
+    beta_l_max = betas[-1]
+    beta_l = (1 - beta_t) * (beta_l_max - beta_l_min) + beta_l_min
+    return beta_l
+
+def convert_beta_l_to_beta_t(beta_l, betas):
+    # beta_l = beta_ls[t]
+    beta_l_min = betas[0]
+    beta_l_max = betas[-1]
+    beta_t = 1 - (beta_l - beta_l_min) / (beta_l_max - beta_l_min)
+    return beta_t
+
 
 def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, device, norm='l1', has_class_label=False):
     # remember, the images in this batch are also selected at random via randperm
