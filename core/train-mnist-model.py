@@ -50,13 +50,13 @@ def train_model():
     # -------------------------------- description ------------------------------- #
     description = {
         'model_name': 'dendritic-mnist',
-        'model_number': 11,
+        'model_number': 12,
         'num_steps': 100,
         'forward_schedule': 'sigmoid',
         'batch_size': 512,
         'hidden_cfg': [12, 12],
         'num_ambient_dims': 28 * 28,
-        'num_epochs': 1e3,
+        'num_epochs': 5e3,
         'manifold_type': 'mnist',
         'lr': 3e-3,
         'optimizer': 'Adam',
@@ -79,11 +79,11 @@ def train_model():
     #     'classes': 'all',
     # }
     
-    pretrained = False
+    pretrained = True
     if pretrained:
         description['pretrained'] = True
         description['pretrained_model_name'] = 'dendritic-mnist'
-        description['pretrained_model_num'] = 6
+        description['pretrained_model_num'] = 11
     else:
         description['pretrained'] = False
         
@@ -146,6 +146,10 @@ def train_model():
 
     model.train()
     model = train(description['num_epochs'], model, train_loader, description, optimizer, tb, device)
+
+    end_time = time.time()
+    total_time = end_time-start_time
+    print(f'training took {total_time/60:.0f} minutes or {total_time/60:.1f} hours', flush=True)
     tb.flush()
 
     from utils import save_model_weights
