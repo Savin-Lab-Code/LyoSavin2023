@@ -48,42 +48,30 @@ def train_model():
     sys.path.append(os.path.join(base_dir, 'core/utils'))
     
     # -------------------------------- description ------------------------------- #
+    
     description = {
+        # 'model_name': 'fc-mnist',
         'model_name': 'dendritic-mnist',
-        'model_number': 12,
+        'model_number': 10,
+        'num_hidden_layers': 5,
         'num_steps': 100,
         'forward_schedule': 'sigmoid',
         'batch_size': 512,
+        # 'hidden_cfg': 1024,
         'hidden_cfg': [12, 12],
         'num_ambient_dims': 28 * 28,
         'num_epochs': 5e3,
         'manifold_type': 'mnist',
-        'lr': 3e-3,
+        'lr': 5e-3,
         'optimizer': 'Adam',
         'classes': 'all',
     }
     
-    # description = {
-    #     'model_name': 'fc-mnist',
-    #     'model_number': 9,
-    #     'num_hidden_layers': 5,
-    #     'num_steps': 100,
-    #     'forward_schedule': 'sine',
-    #     'batch_size': 256,
-    #     'hidden_cfg': 2048,
-    #     'num_ambient_dims': 28 * 28,
-    #     'num_epochs': 200,
-    #     'manifold_type': 'mnist',
-    #     'lr': 3e-4,
-    #     'optimizer': 'Adam',
-    #     'classes': 'all',
-    # }
-    
-    pretrained = True
+    pretrained = False
     if pretrained:
         description['pretrained'] = True
-        description['pretrained_model_name'] = 'dendritic-mnist'
-        description['pretrained_model_num'] = 11
+        description['pretrained_model_name'] = 'fc-mnist'
+        description['pretrained_model_num'] = 8
     else:
         description['pretrained'] = False
         
@@ -99,7 +87,7 @@ def train_model():
                         transforms.ToTensor(),
                     ]))
 
-    from image_utils import rescale_to_neg_one_to_one
+    from image_utils import rescale_to_neg_one_to_one   
     test = rescale_to_neg_one_to_one(mnist_train[0][0])
 
     # select digits
@@ -178,7 +166,7 @@ def main():
         slurm_cpus_per_task = 16,
         slurm_ntasks_per_node = 1,
         mem_gb = 160,
-        timeout_min = 60*10,  # 10 hours
+        timeout_min = 60*12,  # 10 hours
     )
 
     jobs = []
