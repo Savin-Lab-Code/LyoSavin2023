@@ -4,6 +4,7 @@ core/saved_arrays/.DS_Store
 core/cluster/logs/*
 core/saved_arrays/samples/*
 core/saved_arrays/morphology_all/*
+core/saved_arrays/random_waves/*
 core/saved_arrays/eval_loc/fine_discretization/*
 demos/runs/*
 !demos/runs/fc-mnist*
