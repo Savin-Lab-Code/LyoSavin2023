@@ -52,26 +52,24 @@ def train_model():
     description = {
         # 'model_name': 'fc-mnist',
         'model_name': 'dendritic-mnist',
-        'model_number': 10,
-        'num_hidden_layers': 5,
-        'num_steps': 100,
+        'model_number': 26,
+        'batch_size': 1024,
+        'lr': 3e-4,
+        'num_epochs': 2e3,
         'forward_schedule': 'sigmoid',
-        'batch_size': 512,
-        # 'hidden_cfg': 1024,
-        'hidden_cfg': [12, 12],
+        'hidden_cfg': [44],
+        'num_steps': 100,
         'num_ambient_dims': 28 * 28,
-        'num_epochs': 5e3,
         'manifold_type': 'mnist',
-        'lr': 5e-3,
         'optimizer': 'Adam',
         'classes': 'all',
     }
     
-    pretrained = False
+    pretrained = True
     if pretrained:
         description['pretrained'] = True
-        description['pretrained_model_name'] = 'fc-mnist'
-        description['pretrained_model_num'] = 8
+        description['pretrained_model_name'] = 'dendritic-mnist'
+        description['pretrained_model_num'] = 17
     else:
         description['pretrained'] = False
         
