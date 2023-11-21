@@ -162,3 +162,13 @@ def calculate_autocorrelation(data_1d):
     # correlate
     acorr_seq = np.correlate(ndata, ndata, 'full')[len(ndata)-1:]
     return acorr_seq / var / len(ndata)
+
+
+def calculate_KL_divergence(histogram_samples, histogram_dataset, epsilon):
+    from scipy.stats import entropy
+    p = histogram_samples + epsilon  # distribution of model generated samples 
+    q = histogram_dataset + epsilon  # distribution to compare against
+
+    p = p.flatten() / np.sum(p)  # turn into a vector and then normalize
+    q = q.flatten() / np.sum(q)  # turn into a vector and then normalize
+    return entropy(p, q)

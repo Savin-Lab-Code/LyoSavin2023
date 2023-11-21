@@ -41,8 +41,15 @@ def generate_samples(mode, variance, iter_num, num_samples=2e3):
     deterministic_value = repeat_scalar(1, num_samples)
     periods = torch.normal(1, variance, size=(int(num_samples),))
     amplitudes = torch.normal(1, variance, size=(int(num_samples),))
-    # print('original betas device', original_betas.device)
-    # print('periods device', periods.device)
+    
+    while periods.min() < 0:
+        # generate another sample to replace the negative ones
+        periods[periods < 0] = torch.normal(1, variance, size=(int(num_samples),))[periods < 0]
+        
+    while amplitudes.min() < 0:
+        # generate another sample to replace the negative ones
+        amplitudes[amplitudes < 0] = torch.normal(1, variance, size=(int(num_samples),))[amplitudes < 0]
+        
 
     # generate the samples
     print('generating samples...', flush=True)
@@ -92,14 +99,16 @@ def main():
         slurm_cpus_per_task = 16,
         slurm_ntasks_per_node = 1,
         mem_gb = 160,
-        timeout_min = 60*12,  # 10 hours
+        timeout_min = 60*1,  # 10 hours
     )
     
     
     # ------------------------------- parameters -------------------------------- #
-    modes = ['period', 'amplitude', 'both']
-    variances = [0, .05, .1, .15, .2, .25, .3]
-    num_repeats = np.arange(10)
+    # modes = ['period', 'amplitude', 'both']
+    modes = ['both']
+    # variances = [0, .05, .1, .15, .2, .25, .3]
+    variances = [.3]
+    num_repeats = [0, 2, 3, 4, 5, 6]
     num_samples = 2e3
     
 

@@ -52,12 +52,12 @@ def train_model():
     description = {
         # 'model_name': 'fc-mnist',
         'model_name': 'dendritic-mnist',
-        'model_number': 26,
-        'batch_size': 1024,
+        'model_number': 33,
+        'batch_size': 512,
         'lr': 3e-4,
-        'num_epochs': 2e3,
+        'num_epochs': 5e3,
         'forward_schedule': 'sigmoid',
-        'hidden_cfg': [44],
+        'hidden_cfg': [150],
         'num_steps': 100,
         'num_ambient_dims': 28 * 28,
         'manifold_type': 'mnist',
@@ -69,7 +69,7 @@ def train_model():
     if pretrained:
         description['pretrained'] = True
         description['pretrained_model_name'] = 'dendritic-mnist'
-        description['pretrained_model_num'] = 17
+        description['pretrained_model_num'] = 26
     else:
         description['pretrained'] = False
         
@@ -125,6 +125,7 @@ def train_model():
 
     # ------------------------------- train model ------------------------------- #
     optimizer = optim.Adam(model.parameters(), lr=description['lr'])
+    # optimizer = optim.SGD(model.parameters(), lr=description['lr'])
     
     run_dir = os.path.join(base_dir, 'demos/runs', f'{description["model_name"]}_{description["model_number"]}')
     tb = SummaryWriter(run_dir, flush_secs=1)
@@ -164,7 +165,7 @@ def main():
         slurm_cpus_per_task = 16,
         slurm_ntasks_per_node = 1,
         mem_gb = 160,
-        timeout_min = 60*12,  # 10 hours
+        timeout_min = 60*20,  # 10 hours
     )
 
     jobs = []
