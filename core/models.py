@@ -797,6 +797,107 @@ class LargeNoisyImageClassifier(nn.Module):
         out = self.softmax(out)
         return out
     
+
+class BatchNorm(nn.Module):
+    def __init__(self, layer, in_channels):
+        super(BatchNorm, self).__init__()
+        self.layer = layer
+        self.in_channels = in_channels
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.bn2 = nn.BatchNorm2d(20)
+        self.bn = {'1': self.bn1, '2': self.bn2}
+
+    def forward(self, x):
+        return self.bn[self.layer](x)
+
+class LayerNorm(nn.Module):
+    def __init__(self, layer, in_channels) -> None:
+        super(LayerNorm, self).__init__()
+        self.layer = layer
+        self.in_channels = in_channels
+        self.ln1 = nn.LayerNorm([in_channels, 14, 14])
+        self.ln2 = nn.LayerNorm([20, 10, 10])
+        self.ln = {'1': self.ln1, '2': self.ln2}
+
+    def forward(self):
+        return self.ln[self.layer]
+
+class GroupNorm(nn.Module):
+    def __init__(self, layer, in_channels) -> None:
+        super(GroupNorm, self).__init__()
+        self.layer = layer
+        self.gn1 = nn.GroupNorm(4, in_channels)
+        self.gn2 = nn.GroupNorm(4, 20)
+        self.gn = {'1': self.gn1, '2': self.gn2}
+
+    def forward(self):
+        return self.gn[self.layer]
+
+class Normalization(nn.Module):
+    def __init__(self, layer, norm_method, norm_position, in_channels):
+        super(Normalization, self).__init__()
+        self.layer = layer
+        self.norm_method = norm_method
+        self.norm_position = norm_position
+        self.in_channels = in_channels
+
+        self.norm_dict = {
+            'nn': nn.Identity(),
+            'bn': BatchNorm(layer=self.layer, in_channels=self.in_channels),
+            'ln': LayerNorm(layer=self.layer, in_channels=self.in_channels),
+            'gn': GroupNorm(layer=self.layer, in_channels=self.in_channels),
+        }
+
+        self.arch_selection = {
+            '1': {'1': self.norm_dict[self.norm_method], '2': self.norm_dict['nn']},
+            '2': {'1': self.norm_dict['nn'], '2': self.norm_dict[self.norm_method]},
+            'both': {'1': self.norm_dict[self.norm_method], '2': self.norm_dict[self.norm_method]}
+        }
+
+    def forward(self, x):
+        return self.arch_selection[self.norm_position][self.layer](x)
+
+class Net(nn.Module):
+    def __init__(self, norm_method=None, num_channels=32, num_steps=100, norm_position='both'):
+        super(Net,self).__init__()
+        self.conv_1 = nn.Conv2d(in_channels=1, out_channels=num_channels, kernel_size=5, stride=2, padding=5//2)
+        self.in_channels = num_channels
+        self.norm_method = norm_method
+        self.norm_position = norm_position
+        self.num_steps = num_steps
+        self.relu = nn.ReLU()
+        self.conv_2 = nn.Conv2d(in_channels=self.in_channels, out_channels=20, kernel_size=5, stride=1)
+        self.fc_1 = nn.Linear(in_features=500, out_features=10)
+        # self.norm_1 = Normalization(layer='1', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
+        # self.norm_2 = Normalization(layer='2', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
+        # self.embed = nn.Embedding(self.num_steps, self.in_channels*14*14)
+        # self.embed.weight.data.uniform_()
+
+    def forward(self, x):
+        # first layer
+        x = self.conv_1(x)
+        # x = self.norm_1(x)
+        # x = x.reshape(x.shape[0], -1)
+        # print(x.shape)
+        # print(t.shape)
+        # print(self.embed.weight.shape)
+        # time_embedding = self.embed(t)
+        # print(time_embedding.shape)
+        # time_embedding = time_embedding.reshape(-1, self.in_channels, 1, 1)
+        # x = time_embedding * x
+        # x = x.reshape(x.shape[0], self.in_channels, 14, 14)
+        x = self.relu(x)
+        
+        # second layer
+        x = self.conv_2(x)
+        # x = self.norm_2(x)
+        x = self.relu(x)
+        x = F.max_pool2d(x, 2, 2)
+        x = torch.flatten(x, 1)
+
+        # third layer
+        x = self.fc_1(x)
+        return x
     
     
 # %%

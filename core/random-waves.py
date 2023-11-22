@@ -46,9 +46,9 @@ def generate_samples(mode, variance, iter_num, num_samples=2e3):
         # generate another sample to replace the negative ones
         periods[periods <= 0] = torch.normal(1, variance, size=(int(num_samples),))[periods <= 0]
         
-    while amplitudes.min() <= 0:
-        # generate another sample to replace the negative ones
-        amplitudes[amplitudes <= 0] = torch.normal(1, variance, size=(int(num_samples),))[amplitudes <= 0]
+    # while amplitudes.min() <= 0:
+    #     # generate another sample to replace the negative ones
+    #     amplitudes[amplitudes <= 0] = torch.normal(1, variance, size=(int(num_samples),))[amplitudes <= 0]
         
 
     # generate the samples
@@ -104,8 +104,8 @@ def main():
     
     
     # ------------------------------- parameters -------------------------------- #
-    modes = ['period', 'amplitude', 'both']
-    # modes = ['both']
+    # modes = ['period', 'amplitude', 'both']
+    modes = ['amplitude', 'both']
     variances = [0, .05, .1, .15, .2, .25]
     num_repeats = np.arange(20)
     num_samples = 5e3

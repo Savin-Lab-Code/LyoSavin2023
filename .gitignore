@@ -13,5 +13,6 @@ demos/runs/*
 core/saved_weights/unconditional-dendritic*/
 core/saved_weights/unconditional-concat_*/
 core/saved_weights/dendritic-mnist*
+core/saved_weights/large-noisy-image-classifier*
 demos/test.ipynb
 .vscode/
