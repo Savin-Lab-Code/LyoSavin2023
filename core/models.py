@@ -857,9 +857,9 @@ class Normalization(nn.Module):
     def forward(self, x):
         return self.arch_selection[self.norm_position][self.layer](x)
 
-class Net(nn.Module):
+class NetWithNoiseInfo(nn.Module):
     def __init__(self, norm_method=None, num_channels=32, num_steps=100, norm_position='both'):
-        super(Net,self).__init__()
+        super(NetWithNoiseInfo, self).__init__()
         self.conv_1 = nn.Conv2d(in_channels=1, out_channels=num_channels, kernel_size=5, stride=2, padding=5//2)
         self.in_channels = num_channels
         self.norm_method = norm_method
@@ -872,20 +872,16 @@ class Net(nn.Module):
         # self.norm_2 = Normalization(layer='2', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
         self.embed = nn.Embedding(self.num_steps, self.in_channels)
         self.embed.weight.data.uniform_()
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x, t):
         # first layer
         x = self.conv_1(x)
         # x = self.norm_1(x)
-        # x = x.reshape(x.shape[0], -1)
-        # print(x.shape)
-        # print(t.shape)
-        # print(self.embed.weight.shape)
         time_embedding = self.embed(t)
-        # print(time_embedding.shape)
         time_embedding = time_embedding.reshape(-1, self.in_channels, 1, 1)
+        
         x = time_embedding * x
-        # x = x.reshape(x.shape[0], self.in_channels, 14, 14)
         x = self.relu(x)
         
         # second layer
@@ -897,8 +893,39 @@ class Net(nn.Module):
 
         # third layer
         x = self.fc_1(x)
+        x = self.softmax(x)
         return x
-    
+
+class NetNoNoiseInfo(nn.Module):
+    def __init__(self, norm_method=None, num_channels=32, num_steps=100, norm_position='both'):
+        super(NetNoNoiseInfo, self).__init__()
+        self.conv_1 = nn.Conv2d(in_channels=1, out_channels=num_channels, kernel_size=5, stride=2, padding=5//2)
+        self.in_channels = num_channels
+        self.norm_method = norm_method
+        self.norm_position = norm_position
+        self.num_steps = num_steps
+        self.relu = nn.ReLU()
+        self.conv_2 = nn.Conv2d(in_channels=self.in_channels, out_channels=20, kernel_size=5, stride=1)
+        self.fc_1 = nn.Linear(in_features=500, out_features=10)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        # first layer
+        x = self.conv_1(x)
+        # x = self.norm_1(x)
+        x = self.relu(x)
+        
+        # second layer
+        x = self.conv_2(x)
+        # x = self.norm_2(x)
+        x = self.relu(x)
+        x = F.max_pool2d(x, 2, 2)
+        x = torch.flatten(x, 1)
+
+        # third layer
+        x = self.fc_1(x)
+        x = self.softmax(x)
+        return x
     
 # %%
 

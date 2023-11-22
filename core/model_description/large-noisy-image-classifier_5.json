@@ -1,0 +1,1 @@
+{"model_name": "large-noisy-image-classifier", "model_num": 5, "num_hidden": 32, "dataset": "mnist", "num_epochs": 100.0, "lr": 0.004, "num_steps": 150, "batch_size": 512, "num_in": 784, "schedule": "sigmoid", "start": 1e-07, "end": 0.1}

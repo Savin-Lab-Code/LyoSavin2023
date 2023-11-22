@@ -700,6 +700,8 @@ def calculate_histogram(data, num_bins, lim):
     takes in samples of shape (num_samples, num_amb_dim=2) and returns a histogram of the data of shape (num_bins, num_bins)
     '''
     bins = np.linspace(-lim, lim, num_bins+1)
+    print(num_bins)
+    print(bins.shape)
     histogram = np.histogram2d(data[:, 0], data[:, 1], bins=bins)[0]
     return histogram
 
