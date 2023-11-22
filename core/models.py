@@ -870,10 +870,10 @@ class Net(nn.Module):
         self.fc_1 = nn.Linear(in_features=500, out_features=10)
         # self.norm_1 = Normalization(layer='1', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
         # self.norm_2 = Normalization(layer='2', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
-        # self.embed = nn.Embedding(self.num_steps, self.in_channels*14*14)
-        # self.embed.weight.data.uniform_()
+        self.embed = nn.Embedding(self.num_steps, self.in_channels)
+        self.embed.weight.data.uniform_()
 
-    def forward(self, x):
+    def forward(self, x, t):
         # first layer
         x = self.conv_1(x)
         # x = self.norm_1(x)
@@ -881,10 +881,10 @@ class Net(nn.Module):
         # print(x.shape)
         # print(t.shape)
         # print(self.embed.weight.shape)
-        # time_embedding = self.embed(t)
+        time_embedding = self.embed(t)
         # print(time_embedding.shape)
-        # time_embedding = time_embedding.reshape(-1, self.in_channels, 1, 1)
-        # x = time_embedding * x
+        time_embedding = time_embedding.reshape(-1, self.in_channels, 1, 1)
+        x = time_embedding * x
         # x = x.reshape(x.shape[0], self.in_channels, 14, 14)
         x = self.relu(x)
         
