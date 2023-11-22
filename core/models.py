@@ -912,12 +912,10 @@ class NetNoNoiseInfo(nn.Module):
     def forward(self, x):
         # first layer
         x = self.conv_1(x)
-        # x = self.norm_1(x)
         x = self.relu(x)
         
         # second layer
         x = self.conv_2(x)
-        # x = self.norm_2(x)
         x = self.relu(x)
         x = F.max_pool2d(x, 2, 2)
         x = torch.flatten(x, 1)
@@ -926,6 +924,38 @@ class NetNoNoiseInfo(nn.Module):
         x = self.fc_1(x)
         x = self.softmax(x)
         return x
+    
+    
+# def NetLarger():
+#     self.features = nn.Sequential(
+#             # first layer
+#             nn.Conv2d(3, self.num_channels[0], kernel_size=11, stride=4, padding=2),
+#             self.norm_dict1[self.normalize],
+#             self.relu,
+#             self.maxpool2d,
+
+#             # second layer
+#             nn.Conv2d(self.num_channels[0], self.num_channels[1], kernel_size=5, padding=2),
+#             self.norm_dict2[self.normalize],
+#             self.relu,
+#             self.maxpool2d,
+
+#             # third layer
+#             nn.Conv2d(self.num_channels[1], self.num_channels[2], kernel_size=3, padding=1),
+#             self.norm_dict3[self.normalize],
+#             self.relu,
+
+#             # fourth layer
+#             nn.Conv2d(self.num_channels[2], self.num_channels[3], kernel_size=3, padding=1),
+#             self.norm_dict4[self.normalize],
+#             self.relu,
+
+#             # fifth layer
+#             nn.Conv2d(self.num_channels[3], self.num_channels[4], kernel_size=3, padding=1),
+#             self.norm_dict5[self.normalize],
+#             self.relu,
+#             self.maxpool2d,
+#         )
     
 # %%
 
