@@ -207,7 +207,7 @@ def get_classifier_acc(model, test_data, test_targets):
 
     t = torch.tensor([0])
     t = t.repeat(testset_size,).long().cuda()
-    probs = model(test_data)
+    probs = model(test_data, t)
     pred = probs.max(dim=1)[1]
     # print('probs', probs[:10])
     print(f'predictions: {pred[:10]}')
