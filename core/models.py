@@ -757,6 +757,48 @@ class NoisyImageClassifierNoTimeEmbedding(nn.Module):
         out = self.linear3(out)
         out = self.softmax(out)
         return out
+    
+
+
+class LargeNoisyImageClassifier(nn.Module):
+    '''
+    A simple 2 layer feedforward classifier model for classifying noisy images from 2D manifolds.
+    Takes in explicit noise level information in the forward method
+    '''
+    def __init__(self, num_in, num_hidden, num_classes, num_steps):
+        super(LargeNoisyImageClassifier, self).__init__()
+        self.num_in = num_in
+        self.num_hidden = num_hidden
+        self.num_classes = num_classes
+        
+        self.linear1 = nn.Linear(self.num_in, self.num_hidden)
+        self.linear2 = nn.Linear(self.num_hidden, self.num_hidden)
+        self.linear3 = nn.Linear(self.num_hidden, self.num_hidden)
+        self.linear4 = nn.Linear(self.num_hidden, self.num_classes)
+        self.nonlin = nn.ReLU()
+        self.softmax = nn.Softmax(dim=1)
+        
+        self.embed = nn.Embedding(num_steps, num_hidden)  # the embedding layer is a lookup table that encodes side information like `t`
+        self.embed.weight.data.uniform_()
+        
+    def forward(self, x, t): 
+        out = self.linear1(x)
+        time_embedding = self.embed(t)
+        out = time_embedding * out
+        out = self.nonlin(out)
+        
+        out = self.linear2(out)
+        out = self.nonlin(out)
+        
+        out = self.linear3(out)
+        out = self.nonlin(out)
+        
+        out = self.linear4(out)
+        out = self.softmax(out)
+        return out
+    
+    
+    
 # %%
 
 # ------------------------- Stochastic Neural Network ------------------------ #
@@ -812,3 +854,5 @@ class SNN(nn.Module):
         x = self.linear(x)
         
         return x
+    
+    
