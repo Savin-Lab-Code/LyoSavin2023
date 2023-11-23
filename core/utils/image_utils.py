@@ -283,12 +283,9 @@ def perform_top_down_inference(diffusion_model, classifier, n_steps, label, s, s
         x_copy = x.clone()
         classifier_score = compute_classifier_score(classifier, x_copy, label, torch.tensor([i], device=device))
         classifier_score = torch.tensor(classifier_score, device=device).reshape(mean.shape)
-        # print(classifier_score.shape)
-        # print(mean)
-        # print(sigma_t)
-        # print(z)
-        cur_x = mean - s * sigma_t * classifier_score + sigma_t * z
-        # print(cur_x.shape)
+
+        cur_x = mean + s * sigma_t * classifier_score + sigma_t * z
+
         x_seq.append(cur_x)
         classifier_scores.append(classifier_score)
     x_seq = torch.stack(x_seq, dim=0).detach()
