@@ -868,8 +868,6 @@ class NetWithNoiseInfo(nn.Module):
         self.relu = nn.ReLU()
         self.conv_2 = nn.Conv2d(in_channels=self.in_channels, out_channels=20, kernel_size=5, stride=1)
         self.fc_1 = nn.Linear(in_features=500, out_features=10)
-        # self.norm_1 = Normalization(layer='1', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
-        # self.norm_2 = Normalization(layer='2', norm_method=self.norm_method, norm_position=self.norm_position, in_channels=self.in_channels)
         self.embed = nn.Embedding(self.num_steps, self.in_channels)
         self.embed.weight.data.uniform_()
         self.softmax = nn.Softmax(dim=1)
@@ -886,7 +884,6 @@ class NetWithNoiseInfo(nn.Module):
         
         # second layer
         x = self.conv_2(x)
-        # x = self.norm_2(x)
         x = self.relu(x)
         x = F.max_pool2d(x, 2, 2)
         x = torch.flatten(x, 1)

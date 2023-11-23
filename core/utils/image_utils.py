@@ -217,3 +217,82 @@ def get_classifier_acc(model, test_data, test_targets):
     
     return num_correct / testset_size
 
+
+
+# ---------------------------------------------------------------------------- #
+#                                   inference                                  #
+# ---------------------------------------------------------------------------- #
+def compute_classifier_score(classifier, x, class_label, t):
+    x = x.detach().requires_grad_(True)
+
+    probs = classifier(x, t)
+    
+    logits = torch.log(probs)  # this is = log p(y|x)
+    
+    per_label_logit = logits[:, class_label]
+    
+    score = torch.autograd.grad(per_label_logit, x, torch.ones_like(per_label_logit))[0]
+    
+    return score.detach().cpu().numpy()
+
+
+@torch.no_grad()
+def top_down_posterior_sample(diffusion_model, class_label, x, t, s, alphas, betas, one_minus_alphas_prod_sqrt, device):
+    from utils import extract
+    # noise level
+    t = torch.tensor([t], device=device)
+    T = t.repeat(x.shape[0], 1)
+    
+    # Factor to the model output
+    eps_factor = ((1 - extract(alphas, t, x)) / extract(one_minus_alphas_prod_sqrt, t, x))
+    
+    # Model output
+    eps_theta = diffusion_model(x, T)
+    
+    # Final values
+    mean = (1 / extract(alphas, t, x).sqrt()) * (x - (eps_factor * eps_theta))
+    
+    # Generate z
+    z = torch.randn_like(x, device=device)
+    
+    # Fixed sigma
+    sigma_t = extract(betas, t, x).sqrt()
+    return mean.detach(), sigma_t, z
+    
+    # # posterior_mean = mean
+    # posterior_mean = mean + s * sigma_t * classifier_score
+    # sample = posterior_mean + sigma_t * z
+    
+    # return sample
+
+
+def perform_top_down_inference(diffusion_model, classifier, n_steps, label, s, shape, schedule='sigmoid', start=1e-5, end=2e-2, device='cpu'):
+    '''takes a model and returns the sequence of x_t's during the reverse process
+    '''
+    betas, alphas, _, _, _, _, one_minus_alphas_prod_sqrt = calculate_coefficients(n_steps, device, schedule, start, end)
+
+    cur_x = torch.randn(shape, device=device)
+    # cur_x = rescale_to_neg_one_to_one(cur_x)
+        
+    x_seq = [cur_x]
+    classifier_scores = []
+    for i in reversed(range(n_steps)):
+        mean, sigma_t, z = top_down_posterior_sample(diffusion_model, label, cur_x, i, s, alphas, betas, one_minus_alphas_prod_sqrt, device)
+        
+        x = cur_x.reshape(cur_x.shape[0], 1, 28, 28)
+        x_copy = x.clone()
+        classifier_score = compute_classifier_score(classifier, x_copy, label, torch.tensor([i], device=device))
+        classifier_score = torch.tensor(classifier_score, device=device).reshape(mean.shape)
+        # print(classifier_score.shape)
+        # print(mean)
+        # print(sigma_t)
+        # print(z)
+        cur_x = mean - s * sigma_t * classifier_score + sigma_t * z
+        # print(cur_x.shape)
+        x_seq.append(cur_x)
+        classifier_scores.append(classifier_score)
+    x_seq = torch.stack(x_seq, dim=0).detach()
+    classifier_scores = torch.stack(classifier_scores, dim=0).detach()
+    
+    return x_seq, classifier_scores
+

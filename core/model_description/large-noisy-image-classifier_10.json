@@ -1,0 +1,1 @@
+{"model_name": "large-noisy-image-classifier", "model_num": 10, "architecture": "NetWithNoiseInfo", "num_hidden": 32, "dataset": "mnist", "num_epochs": 10, "lr": 0.003, "num_steps": 150, "batch_size": 512, "num_in": 784, "schedule": "sigmoid", "start": 1e-07, "end": 0.1, "notes": "training on noisy images."}
