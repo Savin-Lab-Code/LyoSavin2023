@@ -1,1 +1,16 @@
-{"model_name": "fc-mnist", "model_number": 8, "num_hidden_layers": 4, "num_steps": 100, "forward_schedule": "sine", "batch_size": 128, "hidden_cfg": 1024, "num_ambient_dims": 784, "num_epochs": 400, "manifold_type": "mnist", "lr": 0.0003, "optimizer": "Adam", "classes": "all", "pretrained": false}
+{
+    "model_name": "fc-mnist",
+    "model_number": 8,
+    "num_hidden_layers": 4,
+    "num_steps": 100,
+    "forward_schedule": "sine",
+    "batch_size": 128,
+    "hidden_cfg": 1024,
+    "num_ambient_dims": 784,
+    "num_epochs": 400,
+    "manifold_type": "mnist",
+    "lr": 0.0003,
+    "optimizer": "Adam",
+    "classes": "all",
+    "pretrained": false
+}
