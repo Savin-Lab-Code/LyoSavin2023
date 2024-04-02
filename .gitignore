@@ -3,6 +3,7 @@ __pycache__/
 core/saved_arrays/.DS_Store
 core/cluster/logs/*
 core/saved_arrays/samples/*
+core/saved_arrays/morphology*
 core/saved_arrays/morphology_all/*
 core/saved_arrays/random_waves/*
 core/saved_arrays/eval_loc/fine_discretization/*
@@ -10,7 +11,7 @@ demos/runs/*
 !demos/runs/fc-mnist*
 !demos/runs/dendritic-mnist*
 !demos/runs/large-noisy-image-classifier*
-core/saved_weights/unconditional-dendritic*/
+core/saved_weights/unconditional-dendritic*
 core/saved_weights/unconditional-concat_*/
 core/saved_weights/dendritic-mnist*
 core/saved_weights/large-noisy-image-classifier*

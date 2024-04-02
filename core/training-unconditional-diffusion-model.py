@@ -39,6 +39,8 @@ def reverse_process(model,
                     lr,
                     device,
                     dataset,
+                    l1_reg,
+                    l1_reg_on_phase_weights,
                     pretrained_model):
     
     # beta-related parameters
@@ -60,6 +62,7 @@ def reverse_process(model,
     print('num_hidden:', num_hidden)
     print('num_epochs:', num_epochs)
     print('dataset shape:', dataset.shape)
+    print('l1_reg_on_phase_weights', l1_reg_on_phase_weights)
     
     # define model
     if pretrained_model['use_pretrained_model_weights']:
@@ -98,7 +101,7 @@ def reverse_process(model,
             batch_x = dataset[indices]
             
             # compute the loss
-            loss = noise_estimation_loss(model, batch_x, num_steps, alphas_bar_sqrt, one_minus_alphas_prod_sqrt, device, norm='l2', has_class_label=False)
+            loss = noise_estimation_loss(model, batch_x, num_steps, alphas_bar_sqrt, one_minus_alphas_prod_sqrt, device, norm='l2', l1_reg=l1_reg, l1_reg_on_phase_weights=l1_reg_on_phase_weights, has_class_label=False)
             # zero the gradients
             optimizer.zero_grad()
             # backward pass: compute the gradient of the loss wrt the parameters
@@ -106,7 +109,7 @@ def reverse_process(model,
             # call the step function to update the parameters
             optimizer.step()
         
-        if t <= int(2e5):
+        if t < int(5e5):
             if t % int(1e4) == 0:
                 save_checkpoint(t, model.state_dict(), optimizer.state_dict(), loss.item(), model_name, model_number)
         else:
@@ -136,9 +139,12 @@ def train_model(model_name,
                 forward_schedule,
                 num_hidden, 
                 dataset_size, 
+                l1_reg,
+                l1_reg_on_phase_weights,
+                bias,
                 epochs, 
                 batch_size, 
-                lr, 
+                lr,
                 manifold_type, 
                 num_ambient_dims, 
                 pretrained_model,
@@ -162,11 +168,11 @@ def train_model(model_name,
     # dataset = load_unimodal_data_nd(dataset_size, 'swiss_roll_3d', 10, rotation_angle=np.pi/4, noise=0, shrink_y_axis=True)
 
     # -------------------------------- load model -------------------------------- #
-    model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=True)
+    model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=bias)
     # model = NoiseConditionalEstimatorConcat(num_hidden)
     
     # -------------------- TRAINING - reverse diffusion process ------------------ #
-    model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, pretrained_model)
+    model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, l1_reg, l1_reg_on_phase_weights, pretrained_model)
     
     save_model_weights(model, model_name, model_number)
 
@@ -174,48 +180,60 @@ def main():
     print('we are running!')
 
     # -------------------------- set model parameters -------------------------- #
-    model_name = 'unconditional-dendritic-10-layers'
-    model_number = 6
+    model_versions = [1]
+    l1_regs = [0.001, 0.0001, 0.00001, 0]  # how much to penalize the L1 norm of the weights of the Fully connected layer
+    l1_reg_on_phase_weights = True
     # model_name = 'unconditional-concat'
-    # model_number = 18
+    # model_version = 18
     num_steps = 100
     forward_schedule = 'sine'
-    num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]  # 10 layers
+    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]  # 10 layers
     # num_hidden = [3, 3, 3, 3, 3, 3, 4]  # 7 layers
     # num_hidden = [4, 4, 4, 4, 4, 3]  # 6 layers
     # num_hidden = [5, 5, 5, 5, 5]  # 5 layers
     # num_hidden = [8, 8, 7, 7]  # 4 layers
     # num_hidden = [59, 59]  # 2 layers
+    
+    num_hiddens = [
+        [2, 2, 2, 2, 2, 2, 2, 2, 3, 3],
+        [3, 3, 3, 3, 3, 3, 4],
+        [4, 4, 4, 4, 4, 3],
+        [5, 5, 5, 5, 5],
+        [8, 8, 7, 7],
+        [59, 59]
+    ]
+    
+    bias = True
     # num_hidden = 128
     num_ambient_dims = 2
-    num_epochs = 15e5
+    num_epochs = 20e5+1
     manifold_type = 'swiss_roll'
     manifold_noise_amount = 0
     # manifold_rotation_angle = 'np.pi/4'
     dataset_size = int(2e3)
-    batch_size = 128
+    batch_size = 256
     learning_rate = 3e-4
+    
+    pretrained_model_name = 'unconditional-concat'
     pretrained_model = {
-        'use_pretrained_model_weights': True,
-        'use_checkpoint_weights': True,
+        'use_pretrained_model_weights': False,
+        'use_checkpoint_weights': False,
         'checkpoint_epoch': 1490000,
-        'model_name': model_name,
+        'model_name': pretrained_model_name,
         'model_num': 1
     }
 
     # -------------------------- save model description -------------------------- #
     description = {
-        'model_name': model_name,
-        'model_number': model_number,
         'num_steps': num_steps,
         'forward_schedule': forward_schedule,
-        'num_hidden': num_hidden,
         'num_ambient_dims': num_ambient_dims,
         'num_epochs': f'{num_epochs:.1e}',
         'manifold_type': manifold_type,
         'manifold_noise_amount': manifold_noise_amount,
         # 'manifold_rotation_angle': manifold_rotation_angle,
         'dataset_size': f'{dataset_size:.0e}',
+        'bias': bias,
         'batch_size': batch_size,
         'learning_rate': f'{learning_rate:.0e}',
         'use_pretrained_model': pretrained_model['use_pretrained_model_weights'],
@@ -226,11 +244,22 @@ def main():
         if pretrained_model['use_checkpoint_weights']:
             description['pretrained_checkpoint_epoch'] = pretrained_model['checkpoint_epoch']
 
-    json_savedir = os.path.join(base_dir, 'core/model_description')
-    model_name_and_number = f'{model_name}_{model_number}'
-    json_name = f'{model_name_and_number}.json'
-    with open(os.path.join(json_savedir, json_name), 'w') as file:
-        json.dump(description, file)
+
+    # json_savedir = os.path.join(base_dir, 'core/model_description')
+    # if isinstance(model_versions, list):
+    #     for num_hidden in num_hiddens:
+    #         for l1_lambda in l1_regs:
+    #             for model_version in model_versions:
+    #                 model_name = f'unconditional-dendritic-{len(num_hidden)}-layers-l1-reg-{l1_lambda}-l1_on_phase_weights={l1_reg_on_phase_weights}'
+    #                 description['model_name'] = model_name
+    #                 description['model_number'] = model_version
+    #                 description['num_hidden'] = num_hidden
+    #                 description['l1_regularization'] = l1_lambda
+    #                 description['l1_reg_on_phase_weights'] = l1_reg_on_phase_weights
+    #                 model_name_and_number = f'{model_name}_{model_version}'
+    #                 json_name = f'{model_name_and_number}.json'
+    #                 with open(os.path.join(json_savedir, json_name), 'w') as file:
+    #                     json.dump(description, file)
 
     # ------------------------- submitit cluster executor ------------------------ #
     log_folder = os.path.join(base_dir, 'core/cluster/logs/training_models', '%j')
@@ -254,24 +283,44 @@ def main():
     )
 
     jobs = []
+    json_savedir = os.path.join(base_dir, 'core/model_description')
     with ex.batch():
-        job = ex.submit(train_model, 
-                        model_name, 
-                        model_number,
-                        num_steps, 
-                        forward_schedule,
-                        num_hidden, 
-                        dataset_size, 
-                        num_epochs, 
-                        batch_size, 
-                        learning_rate, 
-                        manifold_type,
-                        num_ambient_dims,
-                        pretrained_model,
-                        # manifold_offsets,
-                        # manifold_rotation_angle,
-        )
-        jobs.append(job)
+        for num_hidden in num_hiddens:
+            for l1_lambda in l1_regs:
+                for model_version in model_versions:
+                    
+                    assert isinstance(model_versions, list)
+                    model_name = f'unconditional-dendritic-{len(num_hidden)}-layers-l1-reg={l1_lambda}-l1_on_phase_weights={l1_reg_on_phase_weights}'
+                    description['model_name'] = model_name
+                    description['model_number'] = model_version
+                    description['num_hidden'] = num_hidden
+                    description['l1_regularization'] = l1_lambda
+                    description['l1_reg_on_phase_weights'] = l1_reg_on_phase_weights
+                    model_name_and_number = f'{model_name}_{model_version}'
+                    json_name = f'{model_name_and_number}.json'
+                    with open(os.path.join(json_savedir, json_name), 'w') as file:
+                        json.dump(description, file)
+                    
+                    job = ex.submit(train_model, 
+                                    model_name, 
+                                    model_version,
+                                    num_steps, 
+                                    forward_schedule,
+                                    num_hidden, 
+                                    dataset_size, 
+                                    l1_lambda,
+                                    l1_reg_on_phase_weights,
+                                    bias,
+                                    num_epochs, 
+                                    batch_size, 
+                                    learning_rate, 
+                                    manifold_type,
+                                    num_ambient_dims,
+                                    pretrained_model,
+                                    # manifold_offsets,
+                                    # manifold_rotation_angle,
+                    )
+                    jobs.append(job)
     print('all jobs submitted!')
 
     idx = 0

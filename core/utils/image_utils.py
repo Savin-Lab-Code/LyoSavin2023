@@ -71,14 +71,14 @@ def calculate_coefficients(num_steps, device, schedule='sigmoid', start=3e-3, en
     return betas, alphas, alphas_prod, alphas_prod_p, alphas_bar_sqrt, one_minus_alphas_prod_log, one_minus_alphas_prod_sqrt
 
 
-def calculate_loss(model, x0_data, n_steps=100, forward_schedule='sine', norm='l2', device='cpu'):
+def calculate_loss(model, x0_data, n_steps=100, forward_schedule='sine', norm='l2', device='cpu', start=1e-5, end=2e-1):
     from utils import extract
     
     batch_size = x0_data.shape[0]
     x0_data = x0_data.reshape(batch_size, -1)
     x0_data = rescale_to_neg_one_to_one(x0_data)
     
-    _, _, _, _, alphas_bar_sqrt, _, one_minus_alphas_bar_sqrt = calculate_coefficients(n_steps, device, forward_schedule)
+    _, _, _, _, alphas_bar_sqrt, _, one_minus_alphas_bar_sqrt = calculate_coefficients(n_steps, device, forward_schedule, start, end)
     
     # Select a random step for each example
     # t = torch.randint(0, n_steps, size=(batch_size // 2 + 1,), device=device)

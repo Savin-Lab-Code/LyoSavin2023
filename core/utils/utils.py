@@ -140,7 +140,7 @@ def convert_beta_l_to_beta_t(beta_l, betas):
     return beta_t
 
 
-def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, device, norm='l1', has_class_label=False):
+def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, device, norm='l2', l1_reg=0, l1_reg_on_phase_weights=True, has_class_label=False):
     # remember, the images in this batch are also selected at random via randperm
     batch_size = x_0.shape[0]
     # has_class_label = (len(x_0[0]) == 3)
@@ -173,10 +173,21 @@ def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas
     else:
         output = model(x, t)
 
+    # we can put an L1 regularization term to penalize weights of the fully connected layer
+    if l1_reg != 0:
+        if l1_reg_on_phase_weights:
+            # we want l1 regularization on the recurrent weights only
+            l1_loss = l1_reg * torch.norm(model.features[0].linear.weight[:-1], p=1)
+        else:
+            # we want l1 regularization on the weights corresponding to the phase input as well (i.e. all of the fc weights)
+            l1_loss = l1_reg * torch.norm(model.features[0].linear.weight, p=1)
+    else:
+        l1_loss = 0
+
     if norm == 'l1':
-        return torch.abs(e - output).mean()
+        return torch.abs(e - output).mean() + l1_loss
     elif norm == 'l2':
-        return (e - output).square().mean()
+        return (e - output).square().mean() + l1_loss
 
 def save_model_weights(model, model_name:str, model_number: int, savepath='saved_weights/'):
     '''save the state dict of a model to a given directory'''
@@ -315,7 +326,32 @@ def select_model(model_name, model_version_number, device='cpu', print_details=F
 
 
 def load_model_weights_from_chkpt(model_name, model_num, epoch_number, checkpoint_path='saved_weights', device=torch.device('cpu')):
-    model, num_steps, ambient_dims = select_model(model_name, model_num)
+    from models import VariableDendriticCircuit
+    # model, num_steps, ambient_dims = select_model(model_name, model_num)
+    model_details = load_model_description(model_name, model_num)
+    print('model loaded!', flush=True)
+    model_name = model_details['model_name']
+    model_num = model_details['model_number']
+    num_steps = model_details['num_steps']
+    num_hidden = model_details['num_hidden']
+    
+    if 'num_ambient_dims' in model_details.keys():
+        dim_amb = model_details['num_ambient_dims']
+    else: 
+        if 'num_in' in model_details.keys():
+            dim_amb = model_details['num_in']
+        else:
+        # if model_num == 47:
+            dim_amb = 2
+    dim_amb = int(dim_amb)
+
+    if 'bias' in model_details:
+        bias = model_details['bias']
+    else: 
+        bias = True
+
+    if model_name[:23] == 'unconditional-dendritic':
+        model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=dim_amb, num_out=dim_amb, bias=bias)
 
     checkpoint_path = os.path.join(base_dir, 'core', checkpoint_path, f'{model_name}_{str(model_num)}')
     epoch_file = 'epoch='+str(epoch_number)
@@ -323,7 +359,7 @@ def load_model_weights_from_chkpt(model_name, model_num, epoch_number, checkpoin
     state_dict = file['model_state_dict']
     model.load_state_dict(state_dict)
     model.eval()
-    return model, num_steps, ambient_dims
+    return model, num_steps, dim_amb
 
 def load_optimizer_state_dict(optimizer, model_name, model_num, epoch_number, checkpoint_path='saved_weights', device=torch.device('cpu')):
     checkpoint_path = os.path.join(base_dir, 'core', checkpoint_path, f'{model_name}_{str(model_num)}')

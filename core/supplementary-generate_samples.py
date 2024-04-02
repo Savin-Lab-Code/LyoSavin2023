@@ -121,8 +121,8 @@ def generate_samples(save_dir, batch_idx, num_runs, sampling_method, distributio
 
             for run_idx in trange(num_runs, desc='run number'):
                 _, x_fwd, x_rev = sequential_prior_sampler(prior_sampler, manifold_initial_point, sample_size, num_steps, disable_tqdm=True, normalized_beta_schedule=normalized_beta_schedule, schedule=schedule)
-                x_fwd = x_fwd.numpy()
-                x_rev = x_rev.numpy()
+                # x_fwd = x_fwd.numpy()
+                # x_rev = x_rev.numpy()
                 if save_whole_sequence:
                     zarr.save(os.path.join(save_dir, f'x_rev-run_num={run_idx}.zarr'), x_rev)
                     zarr.save(os.path.join(save_dir, f'x_fwd-run_num={run_idx}.zarr'), x_fwd)
@@ -206,41 +206,49 @@ def main():
     # )
     
     # ----------------------------- model parameters ----------------------------- #
-    # sample_size = int(1e3)
-    sample_size = int(5e2)
-    num_runs = 100  # how many repeats of the data collection per job
-    batch_size = 20  # the number of jobs
+    sample_size = int(5e4)
+    # sample_size = int(5e2)
+    num_runs = 1  # how many repeats of the data collection per job
+    batch_size = 1  # the number of jobs
 
     print('batch_size is:', batch_size)
     print('num runs is:', num_runs)
 
 
-    distribution_types = ['posterior']  # ['prior', 'posterior']
-    sampling_methods = ['iid', 'seq']  # ['iid', 'seq']
+    distribution_types = ['prior']  # ['prior', 'posterior']
+    sampling_methods = ['iid']  # ['iid', 'seq']
+    manifold_types = ['unimodal']  # ['unimodal', 'trimodal']
     
     # only for posterior distribution
-    manifold_types = ['trimodal']  # ['unimodal', 'trimodal']
     posterior_types = ['td', 'bu', 'both']  # ['bu', 'td', 'both', 'neither']
     eval_methods = ['xt']  # ['xt', 'mu']
     
     save_whole_sequence = False
 
     # ------------------------------ specify models ------------------------------ #
-    # eval_epochs = [i for i in range(0, int(15e5), int(1e5))]
+    # eval_epochs = [i for i in range(0, int(2e5), int(1e4))]
+    eval_epochs = [i for i in range(int(2e5), int(15e5), int(1e5))]
+    # eval_epochs.extend(eval_epochs2)
     # eval_epochs.append(int(15e5-1e4))
 
-    # layers = [2, 4, 5, 6, 7, 10]
-    # model_names = []
-    # for l in layers:
-    #     model_name = f'unconditional-dendritic-{l}-layers'
-    #     model_names.append(model_name)
+    layers = [2, 4, 5, 6, 7, 10]
+    model_names = []
+    for l in layers:
+        model_name = f'unconditional-dendritic-{l}-layers'
+        model_names.append(model_name)
 
     # model_nums = [1, 2, 3, 4]
+    # model_nums = [6, 7, 8]
+    model_nums = [10, 11]
+
 
 
     # model_name = 'unconditional-dendritic-4-layers'
     # model_num = 1
-
+    
+    # model_names = [None]
+    # model_nums = [None]
+    # eval_epochs = [None]
     
     # ------------------------------- save location ------------------------------- #
     save_dir = os.path.join(base_dir, 'core', 'saved_arrays', 'samples')

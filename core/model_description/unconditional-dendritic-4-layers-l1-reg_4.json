@@ -1,0 +1,1 @@
+{"model_name": "unconditional-dendritic-4-layers-l1-reg", "model_number": 4, "num_steps": 100, "forward_schedule": "sine", "num_hidden": [8, 8, 7, 7], "num_ambient_dims": 2, "num_epochs": "2.0e+05", "manifold_type": "swiss_roll", "manifold_noise_amount": 0, "dataset_size": "2e+03", "l1_regularization": 1, "batch_size": 256, "learning_rate": "3e-04", "use_pretrained_model": false}

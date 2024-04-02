@@ -16,7 +16,7 @@ else:
     base_dir = os.path.dirname(project_root)
 
 
-def train(num_epochs, model, train_loader, description, optimizer, tb, device):
+def train(num_epochs, model, train_loader, description, optimizer, tb, device, start, end):
     from image_utils import calculate_loss
     
     for epoch in tqdm(range(1, int(num_epochs) + 1), total=int(num_epochs), desc='Training model', unit='epochs', miniters=int(num_epochs)/100, maxinterval=float("inf")):
@@ -25,7 +25,7 @@ def train(num_epochs, model, train_loader, description, optimizer, tb, device):
             data = data.to(device)
             
             # compute the loss
-            loss = calculate_loss(model, data, n_steps=description['num_steps'], forward_schedule=description['forward_schedule'], norm='l2', device=device)
+            loss = calculate_loss(model, data, n_steps=description['num_steps'], forward_schedule=description['forward_schedule'], norm='l2', device=device, start=start, end=end)
             
             # zero the gradients
             optimizer.zero_grad()
@@ -52,7 +52,7 @@ def train_model():
     description = {
         # 'model_name': 'fc-mnist',
         'model_name': 'dendritic-mnist',
-        'model_number': 33,
+        'model_number': 38,
         'batch_size': 512,
         'lr': 3e-4,
         'num_epochs': 5e3,
@@ -63,13 +63,16 @@ def train_model():
         'manifold_type': 'mnist',
         'optimizer': 'Adam',
         'classes': 'all',
+        'bias': True,
+        'start': 1e-5,
+        'end': 5e-1,
     }
     
     pretrained = True
     if pretrained:
         description['pretrained'] = True
         description['pretrained_model_name'] = 'dendritic-mnist'
-        description['pretrained_model_num'] = 26
+        description['pretrained_model_num'] = 33
     else:
         description['pretrained'] = False
         
@@ -104,7 +107,7 @@ def train_model():
         model = VariableDendriticCircuit(hidden_cfg=description['hidden_cfg'], 
                                         num_in=description['num_ambient_dims'], 
                                         num_out=description['num_ambient_dims'], 
-                                        bias=True)
+                                        bias=description['bias'])
     elif description['model_name'] == 'fc-mnist':
         model = FullyConnectedNetwork(n_dim_data=description['num_ambient_dims'], num_hidden=description['hidden_cfg'], num_hidden_layers=description['num_hidden_layers'])
     
@@ -112,14 +115,14 @@ def train_model():
     
     from utils import count_parameters
     c = count_parameters(model)
-    print(f'{c:.3g}')
+    print(f'{c:.3g}', flush=True)
     description['num_params'] = f'{c:.3g}'
     
-    if description['pretrained']==True:
+    if pretrained and description['pretrained']==True:
         from utils import load_model_weights
         pretrained_model_name = description['pretrained_model_name']
         pretrained_model_num = description['pretrained_model_num']
-        print(f'taking weights from pretrained model {pretrained_model_name}_{pretrained_model_num}!')
+        print(f'taking weights from pretrained model {pretrained_model_name}_{pretrained_model_num}!', flush=True)
         model = load_model_weights(model, pretrained_model_name, pretrained_model_num, device)
 
 
@@ -132,7 +135,7 @@ def train_model():
     start_time = time.time()
 
     model.train()
-    model = train(description['num_epochs'], model, train_loader, description, optimizer, tb, device)
+    model = train(description['num_epochs'], model, train_loader, description, optimizer, tb, device, description['start'], description['end'])
 
     end_time = time.time()
     total_time = end_time-start_time
@@ -150,9 +153,9 @@ def main():
     log_folder = os.path.join(base_dir, 'core/cluster/logs/train-mnist', '%j')
     ex = submitit.AutoExecutor(folder=log_folder)
     if ex.cluster == 'slurm':
-        print('submitit executor will schedule jobs on slurm!')
+        print('submitit executor will schedule jobs on slurm!', flush=True)
     else:
-        print(f'!!! Slurm executable `srun` not found. Will execute jobs on "{ex.cluster}"')
+        print(f'!!! Slurm executable `srun` not found. Will execute jobs on "{ex.cluster}"', flush=True)
 
 
     # slurm parameters
@@ -172,10 +175,10 @@ def main():
     with ex.batch():
         job = ex.submit(train_model)
         jobs.append(job)
-    print('all jobs submitted!')
+    print('all jobs submitted!', flush=True)
 
     idx = 0
-    print(f'Job {jobs[idx].job_id}')
+    print(f'Job {jobs[idx].job_id}', flush=True)
 
 if __name__ == '__main__':
     main()
