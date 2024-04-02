@@ -217,13 +217,20 @@ class MySequential(nn.Sequential):
     def forward(self, *inputs):
         for module in self._modules.values():
             if type(inputs) == tuple:
-                # if len(inputs) == 2:
-                x, t = inputs
-                inputs = module(*inputs)
-            if isinstance(module, nn.ReLU) or isinstance(module, nn.Sigmoid) or isinstance(module, nn.Softplus) or isinstance(module, nn.SELU):
+                tuple_length = len(inputs)
+                if len(inputs) == 2:
+                    x, t = inputs
+                    inputs = module(*inputs)
+                elif len(inputs) == 3:
+                    x, t, a = inputs
+                    inputs = module(*inputs)
+            elif (isinstance(module, nn.ReLU) or isinstance(module, nn.Sigmoid) or isinstance(module, nn.Softplus) or isinstance(module, nn.SELU)):
                 inputs = module(inputs)
             else:
-                inputs = module(inputs, t)
+                if tuple_length == 2:
+                    inputs = module(inputs, t)
+                elif tuple_length == 3:
+                    inputs = module(inputs, t, a)
         return inputs
     
 class NoiseConditionalLinearConcat1(nn.Module):
@@ -313,6 +320,7 @@ class DendriticBranchLayerWithSkipConnections(nn.Module):
         # Append t to the end of each row
         x = x.view(batch_size, -1, self.branch_factor)
         t = t.repeat_interleave(self.num_out, 1).view(batch_size, -1, 1)
+        a = a.repeat_interleave(self.num_out, 1).view(batch_size, -1, self.num_neurons)
         x_t = torch.cat((x, t, a), dim=2)
         
         # Each neuron has its own dendritic branch.
@@ -569,29 +577,32 @@ class VariableDendriticCircuitWithSkipConnections(nn.Module):
         self.num_units_in_layer = np.cumprod(self.hidden_cfg[::-1])[::-1]
         
         # self.nonlin = nn.SELU()
-        self.fc_layer = MySequential(NoiseConditionalLinearConcat1(self.num_in, self.num_units_in_layer[0], bias))
+        self.fc_layer = MySequential(
+            NoiseConditionalLinearConcat1(self.num_in, self.num_units_in_layer[0], bias),
+            self.nonlin,
+            )
         self.features = self._make_layers()
 
     def _make_layers(self):
         layers = []
-
         for i in range(len(self.hidden_cfg)-1):
             layers += [
-                self.nonlin,
+                # self.nonlin,
                 DendriticBranchLayerWithSkipConnections(self.num_units_in_layer[i], 
                                                         self.num_units_in_layer[i+1], 
                                                         self.num_in,
                                                         self.hidden_cfg[i]
                                                         ),
             ]
+            if i < len(self.hidden_cfg)-2:
+                layers += [
+                    self.nonlin
+                ]
         return MySequential(*layers)
 
     def forward(self, x, t):
         out = self.fc_layer(x, t)  # connections to the outermost dendritic subunits
-        print(out.shape)
-        print(x.shape)
-        out = torch.cat((out, x), dim=1)
-        out = self.features(out, t)
+        out = self.features(out, t, x)
         return out
 
 
