@@ -1,4 +1,6 @@
-This repo contains code that implements the model proposed in the paper "Complex Priors and Flexible Inference in Recurrent Circuits with Dendritic Nonlinearities". 
+# Complex Priors and Flexible Inference in Recurrent Circuits with Dendritic Nonlinearities
+
+This repo contains code that implements the model proposed in the paper "Complex Priors and Flexible Inference in Recurrent Circuits with Dendritic Nonlinearities", in ICLR 2024. 
 
 Here is an overview of the different directories:
 
