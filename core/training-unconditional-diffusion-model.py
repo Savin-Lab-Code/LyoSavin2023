@@ -36,11 +36,12 @@ def reverse_process(model,
                     num_dims,
                     num_epochs,
                     batch_size,
+                    optimizer_type,
                     lr,
                     device,
                     dataset,
                     l1_reg,
-                    l1_reg_on_phase_weights,
+                    l1_on_basal_only,
                     pretrained_model):
     
     # beta-related parameters
@@ -62,7 +63,7 @@ def reverse_process(model,
     print('num_hidden:', num_hidden)
     print('num_epochs:', num_epochs)
     print('dataset shape:', dataset.shape)
-    print('l1_reg_on_phase_weights', l1_reg_on_phase_weights)
+    print('l1_on_basal_only', l1_on_basal_only)
     
     # define model
     if pretrained_model['use_pretrained_model_weights']:
@@ -80,7 +81,13 @@ def reverse_process(model,
     model.to(device)
 
     # training parameteres
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    if optimizer_type == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+    elif optimizer_type == 'sgdm':
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    elif optimizer_type == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=lr)
+    
     if pretrained_model['use_pretrained_model_weights'] and pretrained_model['use_checkpoint_weights']==True:
         from utils import load_optimizer_state_dict
         optimizer = load_optimizer_state_dict(optimizer, pretrained_model['model_name'], pretrained_model['model_num'], epoch_number=pretrained_model['checkpoint_epoch'], device=device)
@@ -101,7 +108,7 @@ def reverse_process(model,
             batch_x = dataset[indices]
             
             # compute the loss
-            loss = noise_estimation_loss(model, batch_x, num_steps, alphas_bar_sqrt, one_minus_alphas_prod_sqrt, device, norm='l2', l1_reg=l1_reg, l1_reg_on_phase_weights=l1_reg_on_phase_weights, has_class_label=False)
+            loss = noise_estimation_loss(model, batch_x, num_steps, alphas_bar_sqrt, one_minus_alphas_prod_sqrt, device, norm='l2', l1_reg=l1_reg, l1_on_basal_only=l1_on_basal_only, has_class_label=False)
             # zero the gradients
             optimizer.zero_grad()
             # backward pass: compute the gradient of the loss wrt the parameters
@@ -135,21 +142,23 @@ def save_model(model, model_name):
 
 def train_model(model_name, 
                 model_number,
+                has_skip_connections,
                 num_steps, 
                 forward_schedule,
                 num_hidden, 
                 dataset_size, 
                 l1_reg,
-                l1_reg_on_phase_weights,
+                l1_on_basal_only,
                 bias,
                 epochs, 
                 batch_size, 
+                optimizer_type,
                 lr,
                 manifold_type, 
                 num_ambient_dims, 
                 pretrained_model,
                 manifold_offsets=[], 
-                manifold_rotation_angle=0, 
+                manifold_rotation_angle=np.pi/4, 
                 ):
     
     global device
@@ -160,39 +169,79 @@ def train_model(model_name,
     sys.path.append(os.path.join(base_dir, 'core/utils'))
     
     from utils import save_model_weights
-    from models import NoiseConditionalEstimatorConcat, VariableDendriticCircuit
+    from models import NoiseConditionalEstimatorConcat, VariableDendriticCircuit, VariableDendriticCircuitWithSkipConnections
     from dataset_utils import load_trimodal_data, load_unimodal_data, load_unimodal_data_3d, load_unimodal_data_nd, generate_2d_swiss_roll
 
     # ------------------------------ define dataset ------------------------------ #
-    dataset = generate_2d_swiss_roll(dataset_size, rescaled=True, return_as_tensor=True)[1]
-    # dataset = load_unimodal_data_nd(dataset_size, 'swiss_roll_3d', 10, rotation_angle=np.pi/4, noise=0, shrink_y_axis=True)
+    if manifold_type == '2d_swiss_roll' and num_ambient_dims == 2:
+        dataset = generate_2d_swiss_roll(dataset_size, rescaled=True, return_as_tensor=True)[1]
+    elif manifold_type == "3d_swiss_roll" and num_ambient_dims == 10:
+        # dataset = load_unimodal_data_nd(dataset_size, 'swiss_roll_3d', 10, rotation_angle=np.pi/4, noise=0, shrink_y_axis=True)
+        dataset = load_unimodal_data_nd(dataset_size, 'swiss_roll_3d', num_ambient_dims, rotation_angle=manifold_rotation_angle, noise=0, shrink_y_axis=True)
+
+    else:
+        raise ValueError('Invalid manifold type or number of ambient dimensions!')
 
     # -------------------------------- load model -------------------------------- #
-    model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=bias)
+    print('has_skip_connections', has_skip_connections)
+    if has_skip_connections:
+        model = VariableDendriticCircuitWithSkipConnections(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=bias)
+    else:
+        model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=num_ambient_dims, num_out=num_ambient_dims, bias=bias)
     # model = NoiseConditionalEstimatorConcat(num_hidden)
     
     # -------------------- TRAINING - reverse diffusion process ------------------ #
-    model = reverse_process(model, model_name, model_number, num_steps, forward_schedule, num_hidden, num_ambient_dims, epochs, batch_size, lr, device, dataset, l1_reg, l1_reg_on_phase_weights, pretrained_model)
+    model = reverse_process(
+        model, 
+        model_name, 
+        model_number, 
+        num_steps, 
+        forward_schedule, 
+        num_hidden, 
+        num_ambient_dims, 
+        epochs, 
+        batch_size, 
+        optimizer_type, 
+        lr, 
+        device, 
+        dataset, 
+        l1_reg, 
+        l1_on_basal_only, 
+        pretrained_model
+    )
     
     save_model_weights(model, model_name, model_number)
-
+    
+def construct_model_name(manifold_type, num_hidden, has_skip_connections, l1_lambda, l1_on_basal_only):
+    model_name = f'unconditional-dendritic'
+    
+    if manifold_type == '2d_swiss_roll':
+        model_name = model_name
+    elif manifold_type == '3d_swiss_roll':
+        model_name = f'{model_name}-3d_manifold-10d_ambient'
+    
+    model_name = f'{model_name}-{num_hidden}-layers'
+    
+    if has_skip_connections:
+        model_name = f'{model_name}-with-skip-conns'
+    
+    model_name = f'{model_name}-l1-reg={l1_lambda}'
+    model_name = f'{model_name}-l1_on_basal_only={l1_on_basal_only}'
+    return model_name
+    
 def main():
     print('we are running!')
 
     # -------------------------- set model parameters -------------------------- #
-    model_versions = [1]
-    l1_regs = [0.001, 0.0001, 0.00001, 0]  # how much to penalize the L1 norm of the weights of the Fully connected layer
-    l1_reg_on_phase_weights = True
+    model_versions = [2]
+    l1_regs = [1e-4, 1e-5, 1e-6, 0]  # how much to penalize the L1 norm of the weights of the Fully connected layer
+    # l1_reg_on_phase_weights = False
+    l1_on_basal_only = True
     # model_name = 'unconditional-concat'
     # model_version = 18
     num_steps = 100
-    forward_schedule = 'sine'
-    # num_hidden = [2, 2, 2, 2, 2, 2, 2, 2, 3, 3]  # 10 layers
-    # num_hidden = [3, 3, 3, 3, 3, 3, 4]  # 7 layers
-    # num_hidden = [4, 4, 4, 4, 4, 3]  # 6 layers
-    # num_hidden = [5, 5, 5, 5, 5]  # 5 layers
-    # num_hidden = [8, 8, 7, 7]  # 4 layers
-    # num_hidden = [59, 59]  # 2 layers
+    forward_schedule = 'sigmoid'
+    has_skip_connections = False
     
     num_hiddens = [
         [2, 2, 2, 2, 2, 2, 2, 2, 3, 3],
@@ -204,15 +253,17 @@ def main():
     ]
     
     bias = True
+    num_epochs = 2e6+1
     # num_hidden = 128
-    num_ambient_dims = 2
-    num_epochs = 20e5+1
-    manifold_type = 'swiss_roll'
+    num_ambient_dims = 10
+    # manifold_type = '2d_swiss_roll'
+    manifold_type = '3d_swiss_roll'
     manifold_noise_amount = 0
     # manifold_rotation_angle = 'np.pi/4'
     dataset_size = int(2e3)
-    batch_size = 256
-    learning_rate = 3e-4
+    batch_size = 512
+    optimizer_type = 'adam'
+    learning_rate = 3e-3
     
     pretrained_model_name = 'unconditional-concat'
     pretrained_model = {
@@ -235,6 +286,7 @@ def main():
         'dataset_size': f'{dataset_size:.0e}',
         'bias': bias,
         'batch_size': batch_size,
+        'optimizer_type': optimizer_type,
         'learning_rate': f'{learning_rate:.0e}',
         'use_pretrained_model': pretrained_model['use_pretrained_model_weights'],
     }
@@ -243,23 +295,6 @@ def main():
         description['pretrained_model_num'] = pretrained_model['model_num']
         if pretrained_model['use_checkpoint_weights']:
             description['pretrained_checkpoint_epoch'] = pretrained_model['checkpoint_epoch']
-
-
-    # json_savedir = os.path.join(base_dir, 'core/model_description')
-    # if isinstance(model_versions, list):
-    #     for num_hidden in num_hiddens:
-    #         for l1_lambda in l1_regs:
-    #             for model_version in model_versions:
-    #                 model_name = f'unconditional-dendritic-{len(num_hidden)}-layers-l1-reg-{l1_lambda}-l1_on_phase_weights={l1_reg_on_phase_weights}'
-    #                 description['model_name'] = model_name
-    #                 description['model_number'] = model_version
-    #                 description['num_hidden'] = num_hidden
-    #                 description['l1_regularization'] = l1_lambda
-    #                 description['l1_reg_on_phase_weights'] = l1_reg_on_phase_weights
-    #                 model_name_and_number = f'{model_name}_{model_version}'
-    #                 json_name = f'{model_name_and_number}.json'
-    #                 with open(os.path.join(json_savedir, json_name), 'w') as file:
-    #                     json.dump(description, file)
 
     # ------------------------- submitit cluster executor ------------------------ #
     log_folder = os.path.join(base_dir, 'core/cluster/logs/training_models', '%j')
@@ -290,12 +325,14 @@ def main():
                 for model_version in model_versions:
                     
                     assert isinstance(model_versions, list)
-                    model_name = f'unconditional-dendritic-{len(num_hidden)}-layers-l1-reg={l1_lambda}-l1_on_phase_weights={l1_reg_on_phase_weights}'
+                    model_name = construct_model_name(manifold_type, len(num_hidden), has_skip_connections, l1_lambda, l1_on_basal_only)
+
                     description['model_name'] = model_name
                     description['model_number'] = model_version
+                    description['skip_connections'] = has_skip_connections
                     description['num_hidden'] = num_hidden
                     description['l1_regularization'] = l1_lambda
-                    description['l1_reg_on_phase_weights'] = l1_reg_on_phase_weights
+                    description['l1_on_basal_only'] = l1_on_basal_only
                     model_name_and_number = f'{model_name}_{model_version}'
                     json_name = f'{model_name_and_number}.json'
                     with open(os.path.join(json_savedir, json_name), 'w') as file:
@@ -304,15 +341,17 @@ def main():
                     job = ex.submit(train_model, 
                                     model_name, 
                                     model_version,
+                                    has_skip_connections,
                                     num_steps, 
                                     forward_schedule,
                                     num_hidden, 
                                     dataset_size, 
                                     l1_lambda,
-                                    l1_reg_on_phase_weights,
+                                    l1_on_basal_only,
                                     bias,
                                     num_epochs, 
                                     batch_size, 
+                                    optimizer_type,
                                     learning_rate, 
                                     manifold_type,
                                     num_ambient_dims,

@@ -94,10 +94,10 @@ def compute_diffuser_score(diffusion_model, x, t):
     eps_theta = diffusion_model(x, t)
     return eps_theta
 
-def calculate_prior_score_flow_field(prior_sampler, lim=1.5, num_vectors_per_dim=15, t=0, vector_rescale_factor=0.7,):
+def calculate_prior_score_flow_field(prior_sampler, lim=1.5, num_vectors_per_dim=15, t=0, vector_rescale_factor=0.7, device='cpu'):
     '''display the flow field for the prior sampler
     '''
-    t = torch.tensor([t])
+    t = torch.tensor([t], device=device)
 
     score_xs = []
     score_ys = []
@@ -105,8 +105,8 @@ def calculate_prior_score_flow_field(prior_sampler, lim=1.5, num_vectors_per_dim
         for sample_x in np.linspace(-lim, lim, num_vectors_per_dim):
             
             # compute the score 
-            x = torch.tensor([[sample_x, sample_y]], dtype=torch.float)
-            diffuser_score = compute_diffuser_score(prior_sampler, x, t=t).detach()
+            x = torch.tensor([[sample_x, sample_y]], dtype=torch.float, device=device)
+            diffuser_score = compute_diffuser_score(prior_sampler, x, t=t).detach().cpu()
             
             # rescales vectors so you don't have such a huge difference between the largest and smallest
             diffuser_score = diffuser_score/torch.norm(diffuser_score, dim=1)**vector_rescale_factor

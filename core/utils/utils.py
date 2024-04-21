@@ -140,7 +140,7 @@ def convert_beta_l_to_beta_t(beta_l, betas):
     return beta_t
 
 
-def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, device, norm='l2', l1_reg=0, l1_reg_on_phase_weights=True, has_class_label=False):
+def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, device, norm='l2', l1_reg=0, l1_on_basal_only=True, skip_connections=False, has_class_label=False):
     # remember, the images in this batch are also selected at random via randperm
     batch_size = x_0.shape[0]
     # has_class_label = (len(x_0[0]) == 3)
@@ -175,12 +175,37 @@ def noise_estimation_loss(model, x_0, n_steps, alphas_bar_sqrt, one_minus_alphas
 
     # we can put an L1 regularization term to penalize weights of the fully connected layer
     if l1_reg != 0:
-        if l1_reg_on_phase_weights:
-            # we want l1 regularization on the recurrent weights only
-            l1_loss = l1_reg * torch.norm(model.features[0].linear.weight[:-1], p=1)
-        else:
-            # we want l1 regularization on the weights corresponding to the phase input as well (i.e. all of the fc weights)
-            l1_loss = l1_reg * torch.norm(model.features[0].linear.weight, p=1)
+        from models import VariableDendriticCircuit, VariableDendriticCircuitWithSkipConnections
+        # VariableDendriticCircuit (no skip connections)
+        if isinstance(model, VariableDendriticCircuit):
+            if l1_on_basal_only:
+                # we want l1 regularization on the basal synaptic/recurrent weights only, exclude time/phase inputs
+                l1_loss = l1_reg * torch.norm(model.features[0].linear.weight[:, :-1], p=1)
+            else:
+                # we want l1 regularization on the weights corresponding to the phase input as well (i.e. all of the fc weights)
+                l1_loss = l1_reg * torch.norm(model.features[0].linear.weight, p=1)
+                for feature in model.features:
+                    if hasattr(feature, 'layer_weights'):
+                        l1_loss += l1_reg * torch.norm(feature.layer_weights[:, -1:], p=1)
+                    
+        
+        # VariableDendriticCircuitWithSkipConnections model
+        elif isinstance(model, VariableDendriticCircuitWithSkipConnections):
+            if l1_on_basal_only:
+                # we want l1 regularization on the recurrent weights only. we put l1 reg on the skip connections too
+                l1_loss = l1_reg * torch.norm(model.fc_layer[0].linear.weight[:, :-1], p=1)
+                # we apply L1 reg to the skip connections
+                for feature in model.features:
+                    if hasattr(feature, 'layer_weights'):
+                        l1_loss += l1_reg * torch.norm(feature.layer_weights[:, -2:], p=1)
+            else:
+                # we want l1 regularization on the weights corresponding to the phase input as well (i.e. all of the fc weights)
+                l1_loss = l1_reg * torch.norm(model.fc_layer[0].linear.weight, p=1)
+                # we apply L1 reg to the skip connections
+                for feature in model.features:
+                    if hasattr(feature, 'layer_weights'):
+                        l1_loss += l1_reg * torch.norm(feature.layer_weights[:, -3:], p=1)
+            
     else:
         l1_loss = 0
 
@@ -326,10 +351,10 @@ def select_model(model_name, model_version_number, device='cpu', print_details=F
 
 
 def load_model_weights_from_chkpt(model_name, model_num, epoch_number, checkpoint_path='saved_weights', device=torch.device('cpu')):
-    from models import VariableDendriticCircuit
+    from models import VariableDendriticCircuit, VariableDendriticCircuitWithSkipConnections
     # model, num_steps, ambient_dims = select_model(model_name, model_num)
     model_details = load_model_description(model_name, model_num)
-    print('model loaded!', flush=True)
+    # print('model loaded!', flush=True)
     model_name = model_details['model_name']
     model_num = model_details['model_number']
     num_steps = model_details['num_steps']
@@ -350,7 +375,9 @@ def load_model_weights_from_chkpt(model_name, model_num, epoch_number, checkpoin
     else: 
         bias = True
 
-    if model_name[:23] == 'unconditional-dendritic':
+    if "with-skip-conns" in model_name:
+        model = VariableDendriticCircuitWithSkipConnections(hidden_cfg=num_hidden, num_in=dim_amb, num_out=dim_amb, bias=bias)
+    elif model_name[:23] == 'unconditional-dendritic':
         model = VariableDendriticCircuit(hidden_cfg=num_hidden, num_in=dim_amb, num_out=dim_amb, bias=bias)
 
     checkpoint_path = os.path.join(base_dir, 'core', checkpoint_path, f'{model_name}_{str(model_num)}')

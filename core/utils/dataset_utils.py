@@ -463,7 +463,7 @@ def load_unimodal_data_nd(sample_size_per_manifold, manifold_type, dim_amb, rota
     dataset = rescale_samples_to_pm1(dataset)
     # plot_data_distribution(dataset)
     
-    print(f'size of the training set is {sample_size_per_manifold}')
+    # print(f'size of the training set is {sample_size_per_manifold}')
 
     # if train_test_split, do the same thing for the test dataset
     if train_test_split:
